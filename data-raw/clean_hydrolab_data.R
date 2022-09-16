@@ -3,31 +3,31 @@ library(dplyr)
 library(janitor)
 library(lubridate)
 library(hms)
+load("lookup_objects.rdata")
 
 # read data from csv into environment
 raw_data <- read_csv('data-raw/FC1.csv', skip = 5, col_types = "c")
 # View(raw_data)
 glimpse(raw_data)
 
+# ------------------------------------------------------------------------------
+#Note: two locations M1 and BVCL6 are used in two projects (BVSHORE) 
 
-# -----------------------------------------------------------------------------
 regex_pattern <- "\\w+$"
 location_id <- unlist(
   str_extract_all(
     read_csv('data-raw/FC1.csv', col_names = FALSE, n_max = 1),
     regex_pattern))
-
-unit_lookup <- tibble("Characteristic Name" = c("Temperature, water", "Specific conductance", "Resistivity", "Salinity", "Total dissolved solids", "Dissolved oxygen saturation","Dissolved oxygen (DO)", "pH", "Turbidity"),
-                      "Result Unit" = c("deg C", "mS/cm", "KOhm/cm", "ppt", "g/L", "%", "mg/L", "None","NTU"))
-# project_id_lookup
-
-
+# -----------------------------------------------------------------------------
 make_activity_id <- function(location_id, date, activity_type, equipment_name, depth = NULL, time = NULL) {
   YYYYMMDD <- gsub('/', '', date)
   activity <- ifelse(activity_type == "Sample-Routine", "SR", "FM")
   equipment <- ifelse(equipment_name == "Probe/Sensor", "PS", NA)
   hhmm <- gsub(':', '', time)
-  equipment_comment <- ifelse(equipment_name == "Probe/Sensor", "Hydro", NA)
+  equipment_comment <- case_when(
+    equipment_name == "Hydrolab Surveyor DS5 Multiprobe" ~ "Hydro",
+    equipment_name == "AlgaeChek Ultra Fluorometer" ~ "Algae", 
+    TRUE ~ NA_character_)
   paste(location_id, YYYYMMDD, hhmm,activity, equipment, depth, equipment_comment, sep = ":")
 }
 # ------------------------------------------------------------------------------
@@ -45,9 +45,8 @@ formatted_for_wqx <- raw_data %>%
          "Dissolved oxygen (DO)" = "do",
          "pH" = "p_h",
          "Turbidity" = "turb") %>% 
-    pivot_longer(!c(date, time, depth10), names_to = "Characteristic Name", "values_to" = "Result Value") %>%  
-  left_join(unit_lookup) %>%
-  mutate("Project ID" = "",
+    pivot_longer(!c(date, time, depth10), names_to = "Characteristic Name", "values_to" = "Result Value") %>% 
+  mutate("Project ID" = project_id_lookup[location_id],
          "Monitoring Location ID" = location_id,
          # "Activity ID (CHILD-subset)" = make_activity_id(location_id, date, activity_type, equipment_name, time = NULL), 
          "Activity ID User Supplied(PARENTs)" = "",
@@ -61,9 +60,10 @@ formatted_for_wqx <- raw_data %>%
          "Sample Collection Method ID" = "BVR Tribal SWQAPP",
          "Sample Collection Method Context" = "CA_BVR",
          "Sample Collection Equipment Name" = "Probe/Sensor",
-         "Sample Collection Equipment Comment" = "Hydrolab® Surveyor DS5 Multiprobe 
+         "Sample Collection Equipment Comment" = "Hydrolab Surveyor DS5 Multiprobe 
 ",
          "Characteristic Name" = `Characteristic Name`,
+         "Result Unit" = unit_lookup[`Characteristic Name`],
          "Characteristic Name User Supplied" = "",
          "Method Speciation" = "",
          "Result Detection Condition" = "",
