@@ -11,9 +11,9 @@
 
 <meta name="author" content="Inigo Peng" />
 
-<meta name="date" content="2022-10-10" />
+<meta name="date" content="2022-10-12" />
 
-<title>HydroLab Data Wrangling and QC</title>
+<title>AlphaLab Data Wrangling</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -363,214 +363,90 @@ pre code {
 
 
 
-<h1 class="title toc-ignore">HydroLab Data Wrangling and QC</h1>
+<h1 class="title toc-ignore">AlphaLab Data Wrangling</h1>
 <h4 class="author">Inigo Peng</h4>
-<h4 class="date">2022-10-10</h4>
+<h4 class="date">2022-10-12</h4>
 
 </div>
 
 
-<div id="hydrolab-data" class="section level1">
-<h1>HydroLab Data</h1>
+<div id="alphalab-data" class="section level1">
+<h1>AlphaLab Data</h1>
 </div>
 <div id="description-of-data" class="section level1">
 <h1>Description of Data</h1>
 <p><strong>Collection method:</strong></p>
-<p>Hydrolab DS5 Multiprobe</p>
-<p><strong>File format:</strong></p>
-<p>CSVs with location in file title</p>
+<p>Sampling Bottles</p>
+<p><strong>Raw File format:</strong></p>
+<p>AlphaLab CSV lab report</p>
 <p><strong>Monitoring (Project ID)</strong></p>
-<p>Clear Lake Water Quality (CLM), Clear Lake Harmful Algal Bloom (HAB),
-Marina Sampling (MS), Big Valley shoreline sites(BVSHORE), Creek/Hitch
-Sampling (CS), Storm Water Sampling (SW).</p>
+<p>Storm Water Sampling (SW), Tap Water Sampling (CalWATCH).</p>
 <p><strong>WQX submittal required?</strong></p>
-<p>Yes</p>
+<p>Storm Water Sampling YES. Tap Water Sampling NO.</p>
 <div id="data-transformations" class="section level2">
 <h2>Data transformations</h2>
-<p>First we need to load lookup table that contains project ID lookup
-(eg.location FC1’s corresponding project ID is CS) and unit lookup (eg.
-Temperature, water - deg C)</p>
-<pre class="r"><code>load(&quot;data-raw/lookup_objects.rdata&quot;)</code></pre>
-<p>Read in individual Hydro-lab csv using the function read_csv(); we
-make sure the read_csv() function is reading each column type as
-character instead of inferring the column type.</p>
-<pre class="r"><code>raw_full_data &lt;- read_csv(&#39;data-raw/hydro-lab/LPTNT.csv&#39;, col_types = &quot;c&quot;) %&gt;% glimpse</code></pre>
-<pre><code>## Rows: 7
-## Columns: 1
-## $ `Log File Name : LPTNT` &lt;chr&gt; &quot;Setup Date (MMDDYY) : 022122&quot;, &quot;Setup Time (H…</code></pre>
-<p>Since the sensor dataset is quite messy, we need to decide what we
-need and what we discard. We parse the first line (n_max = 1) as the log
-file name contains the location of the sensor. We then extract the
-location from this line by matching it to a pattern.</p>
-<pre class="r"><code>raw_location &lt;- read_csv(&#39;data-raw/hydro-lab/LPTNT.csv&#39;, col_names = FALSE, n_max = 1)</code></pre>
-<pre><code>## Rows: 1 Columns: 1
-## ── Column specification ────────────────────────────────────────────────────────
-## Delimiter: &quot;,&quot;
-## chr (1): X1
-## 
-## ℹ Use `spec()` to retrieve the full column specification for this data.
-## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
-<pre class="r"><code>#we need to convert it to a vector to extract the location
-
-raw_location &lt;- c(raw_location$X1)
-regex_pattern &lt;- &quot;\\w+$&quot;
-location_id &lt;- unlist(
-  str_extract_all(raw_location, regex_pattern)
-)
-
-print(location_id)</code></pre>
-<pre><code>## [1] &quot;LPTNT&quot;</code></pre>
-<p>The results data starts after the first five lines.</p>
-<pre class="r"><code>raw_results_data &lt;- read_csv(&#39;data-raw/hydro-lab/LPTNT.csv&#39;, skip = 5, col_types = &quot;c&quot;) %&gt;% glimpse</code></pre>
-<pre><code>## New names:
-## • `` -&gt; `...3`
-## • `` -&gt; `...5`
-## • `` -&gt; `...7`
-## • `` -&gt; `...9`
-## • `` -&gt; `...11`
-## • `` -&gt; `...13`
-## • `` -&gt; `...15`
-## • `` -&gt; `...17`
-## • `` -&gt; `...19`
-## • `` -&gt; `...21`
-## • `` -&gt; `...23`
-## • `` -&gt; `...25`
-## • `` -&gt; `...27`
-## • `` -&gt; `...29`</code></pre>
+<p>Read in individual AlphaLab excel file using the function
+read_excel().</p>
+<pre class="r"><code>raw_alpha_data &lt;- read_excel(&#39;data-raw/alpha-lab/22G2998 FINAL EXCEL 09 Aug 22 1018.xls&#39;) %&gt;% glimpse</code></pre>
 <pre><code>## Rows: 3
-## Columns: 29
-## $ Date    &lt;chr&gt; &quot;MMDDYY&quot;, &quot;02/21/22&quot;, &quot;Recovery finished at 022522 135943&quot;
-## $ Time    &lt;chr&gt; &quot;HHMMSS&quot;, &quot;14:58:35&quot;, NA
-## $ ...3    &lt;lgl&gt; NA, NA, NA
-## $ IBVSvr4 &lt;chr&gt; &quot;Volts&quot;, &quot;7.8&quot;, NA
-## $ ...5    &lt;lgl&gt; NA, NA, NA
-## $ Temp    &lt;chr&gt; &quot;\xf8C&quot;, &quot;10.75&quot;, NA
-## $ ...7    &lt;lgl&gt; NA, NA, NA
-## $ Depth10 &lt;chr&gt; &quot;meters&quot;, &quot;.489&quot;, NA
-## $ ...9    &lt;lgl&gt; NA, NA, NA
-## $ SpCond  &lt;chr&gt; &quot;mS/cm&quot;, &quot;.354&quot;, NA
-## $ ...11   &lt;lgl&gt; NA, NA, NA
-## $ Res     &lt;chr&gt; &quot;k\xea-cm&quot;, &quot;2.825&quot;, NA
-## $ ...13   &lt;lgl&gt; NA, NA, NA
-## $ Sal     &lt;chr&gt; &quot;ppt&quot;, &quot;.17&quot;, NA
-## $ ...15   &lt;lgl&gt; NA, NA, NA
-## $ TDS     &lt;chr&gt; &quot;g/l&quot;, &quot;.2265&quot;, NA
-## $ ...17   &lt;lgl&gt; NA, NA, NA
-## $ `DO%`   &lt;chr&gt; &quot;Sat&quot;, &quot;118.6&quot;, NA
-## $ ...19   &lt;lgl&gt; NA, NA, NA
-## $ DO      &lt;chr&gt; &quot;mg/l&quot;, &quot;13.15&quot;, NA
-## $ ...21   &lt;lgl&gt; NA, NA, NA
-## $ pH      &lt;chr&gt; &quot;Units&quot;, &quot;8.64&quot;, NA
-## $ ...23   &lt;lgl&gt; NA, NA, NA
-## $ Turb    &lt;chr&gt; &quot;NTUs&quot;, &quot;9.6&quot;, NA
-## $ ...25   &lt;lgl&gt; NA, NA, NA
-## $ CHL     &lt;chr&gt; &quot;\xe6g/l&quot;, &quot;17.04&quot;, NA
-## $ ...27   &lt;lgl&gt; NA, NA, NA
-## $ PCY     &lt;chr&gt; &quot;cell/mL&quot;, &quot;1706&quot;, NA
-## $ ...29   &lt;lgl&gt; NA, NA, NA</code></pre>
-<p>If there are multiple files in a folder, we could read through all of
-the files and bind them together by rows.</p>
-<pre class="r"><code># We create a list of available hydro-lab files 
-raw_file_list &lt;-
-  list.files(&quot;data-raw/hydro-lab&quot;,
-             full.names = T) 
-
-# Create an empty list to append each data frame from each file
-datalist = list()
-
-# We loop through the file list; for each file, we parse the files location and add it to the dataframe of each file.
-
-for (file in raw_file_list){
-  raw_location &lt;- read_csv(file, col_names = FALSE, n_max = 1)
-  raw_location &lt;- c(raw_location$X1)
-  regex_pattern &lt;- &quot;\\w+$&quot;
-  location_id &lt;- unlist(
-    str_extract_all(raw_location,
-                    regex_pattern))
-  print(location_id)
-  raw_results_data &lt;- read_csv(file, skip = 5, col_types = &quot;c&quot;) %&gt;% 
-    mutate(&quot;location_id&quot; = location_id)
-  datalist[[file]] &lt;- raw_results_data
-}</code></pre>
-<pre><code>## Rows: 1 Columns: 1
-## ── Column specification ────────────────────────────────────────────────────────
-## Delimiter: &quot;,&quot;
-## chr (1): X1
-## 
-## ℹ Use `spec()` to retrieve the full column specification for this data.
-## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
-<pre><code>## [1] &quot;FC1&quot;</code></pre>
-<pre><code>## New names:
-## Rows: 1 Columns: 1
-## ── Column specification
-## ──────────────────────────────────────────────────────── Delimiter: &quot;,&quot; chr
-## (1): X1
-## ℹ Use `spec()` to retrieve the full column specification for this data. ℹ
-## Specify the column types or set `show_col_types = FALSE` to quiet this message.
-## • `` -&gt; `...3`
-## • `` -&gt; `...5`
-## • `` -&gt; `...7`
-## • `` -&gt; `...9`
-## • `` -&gt; `...11`
-## • `` -&gt; `...13`
-## • `` -&gt; `...15`
-## • `` -&gt; `...17`
-## • `` -&gt; `...19`
-## • `` -&gt; `...21`
-## • `` -&gt; `...23`
-## • `` -&gt; `...25`
-## • `` -&gt; `...27`
-## • `` -&gt; `...29`</code></pre>
-<pre><code>## [1] &quot;LPTNT&quot;</code></pre>
-<pre><code>## New names:
-## • `` -&gt; `...3`
-## • `` -&gt; `...5`
-## • `` -&gt; `...7`
-## • `` -&gt; `...9`
-## • `` -&gt; `...11`
-## • `` -&gt; `...13`
-## • `` -&gt; `...15`
-## • `` -&gt; `...17`
-## • `` -&gt; `...19`
-## • `` -&gt; `...21`
-## • `` -&gt; `...23`
-## • `` -&gt; `...25`
-## • `` -&gt; `...27`
-## • `` -&gt; `...29`</code></pre>
-<pre class="r"><code># Bind each dataframe together by rows
-all_raw_data &lt;- do.call(rbind, datalist) %&gt;% glimpse()</code></pre>
-<pre><code>## Rows: 6
-## Columns: 30
-## $ Date        &lt;chr&gt; &quot;MMDDYY&quot;, &quot;01/26/22&quot;, &quot;Recovery finished at 012622 154112&quot;…
-## $ Time        &lt;chr&gt; &quot;HHMMSS&quot;, &quot;11:13:37&quot;, NA, &quot;HHMMSS&quot;, &quot;14:58:35&quot;, NA
-## $ ...3        &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ IBVSvr4     &lt;chr&gt; &quot;Volts&quot;, &quot;7.8&quot;, NA, &quot;Volts&quot;, &quot;7.8&quot;, NA
-## $ ...5        &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ Temp        &lt;chr&gt; &quot;\xf8C&quot;, &quot;5.95&quot;, NA, &quot;\xf8C&quot;, &quot;10.75&quot;, NA
-## $ ...7        &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ Depth10     &lt;chr&gt; &quot;meters&quot;, &quot;.195&quot;, NA, &quot;meters&quot;, &quot;.489&quot;, NA
-## $ ...9        &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ SpCond      &lt;chr&gt; &quot;mS/cm&quot;, &quot;.3164&quot;, NA, &quot;mS/cm&quot;, &quot;.354&quot;, NA
-## $ ...11       &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ Res         &lt;chr&gt; &quot;k\xea-cm&quot;, &quot;3.16&quot;, NA, &quot;k\xea-cm&quot;, &quot;2.825&quot;, NA
-## $ ...13       &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ Sal         &lt;chr&gt; &quot;ppt&quot;, &quot;.15&quot;, NA, &quot;ppt&quot;, &quot;.17&quot;, NA
-## $ ...15       &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ TDS         &lt;chr&gt; &quot;g/l&quot;, &quot;.2025&quot;, NA, &quot;g/l&quot;, &quot;.2265&quot;, NA
-## $ ...17       &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ `DO%`       &lt;chr&gt; &quot;Sat&quot;, &quot;80.8&quot;, NA, &quot;Sat&quot;, &quot;118.6&quot;, NA
-## $ ...19       &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ DO          &lt;chr&gt; &quot;mg/l&quot;, &quot;10.13&quot;, NA, &quot;mg/l&quot;, &quot;13.15&quot;, NA
-## $ ...21       &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ pH          &lt;chr&gt; &quot;Units&quot;, &quot;7.4&quot;, NA, &quot;Units&quot;, &quot;8.64&quot;, NA
-## $ ...23       &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ Turb        &lt;chr&gt; &quot;NTUs&quot;, &quot;0&quot;, NA, &quot;NTUs&quot;, &quot;9.6&quot;, NA
-## $ ...25       &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ CHL         &lt;chr&gt; &quot;\xe6g/l&quot;, &quot;.98&quot;, NA, &quot;\xe6g/l&quot;, &quot;17.04&quot;, NA
-## $ ...27       &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ PCY         &lt;chr&gt; &quot;cell/mL&quot;, &quot;98&quot;, NA, &quot;cell/mL&quot;, &quot;1706&quot;, NA
-## $ ...29       &lt;lgl&gt; NA, NA, NA, NA, NA, NA
-## $ location_id &lt;chr&gt; &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC1&quot;, &quot;LPTNT&quot;, &quot;LPTNT&quot;, &quot;LPTNT&quot;</code></pre>
+## Columns: 48
+## $ CLIENT       &lt;chr&gt; &quot;Big Valley Rancheria&quot;, &quot;Big Valley Rancheria&quot;, &quot;Big Vall…
+## $ PROJECT      &lt;chr&gt; &quot;CAL-Watch&quot;, &quot;CAL-Watch&quot;, &quot;CAL-Watch&quot;
+## $ PROJECTNUM   &lt;chr&gt; &quot;[none]&quot;, &quot;[none]&quot;, &quot;[none]&quot;
+## $ LabName      &lt;chr&gt; &quot;Alpha Analytical Laboratories, Inc.&quot;, &quot;Alpha Analytical …
+## $ SAMPLENAME   &lt;chr&gt; &quot;FID 351 1882&quot;, &quot;FID 351 1882&quot;, &quot;FID 351 1883&quot;
+## $ LABSAMPID    &lt;chr&gt; &quot;22G2998-01&quot;, &quot;22G2998-01&quot;, &quot;22G2998-02&quot;
+## $ MATRIX       &lt;chr&gt; &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;
+## $ RPTMATRIX    &lt;chr&gt; &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;
+## $ SAMPDATE     &lt;chr&gt; &quot;07/25/2022 09:00:00&quot;, &quot;07/25/2022 09:00:00&quot;, &quot;07/25/2022…
+## $ PREPDATE     &lt;chr&gt; &quot;07/25/2022 16:00:00&quot;, &quot;07/25/2022 16:00:00&quot;, &quot;07/26/2022…
+## $ ANADATE      &lt;chr&gt; &quot;07/26/2022 16:00:00&quot;, &quot;07/26/2022 16:00:00&quot;, &quot;07/26/2022…
+## $ BATCH        &lt;chr&gt; &quot;AG24440&quot;, &quot;AG24440&quot;, &quot;AG24424&quot;
+## $ METHODCODE   &lt;chr&gt; &quot;PA&quot;, &quot;PA&quot;, &quot;Nitrate as N DW 300.0&quot;
+## $ METHODNAME   &lt;chr&gt; &quot;SM9223B&quot;, &quot;SM9223B&quot;, &quot;EPA 300.0&quot;
+## $ PREPNAME     &lt;chr&gt; &quot;Microbiology Prep&quot;, &quot;Microbiology Prep&quot;, &quot;EPA 300.0&quot;
+## $ ANALYTE      &lt;chr&gt; &quot;Total Coliforms&quot;, &quot;E. Coli&quot;, &quot;Nitrate as N&quot;
+## $ CASNUMBER    &lt;chr&gt; &quot;NA&quot;, &quot;NA&quot;, &quot;14797-55-8&quot;
+## $ SURROGATE    &lt;lgl&gt; FALSE, FALSE, FALSE
+## $ TIC          &lt;lgl&gt; FALSE, FALSE, FALSE
+## $ Result       &lt;chr&gt; &quot;Absent&quot;, &quot;Absent&quot;, &quot;0.53&quot;
+## $ DL           &lt;chr&gt; NA, NA, &quot;0.040&quot;
+## $ RL           &lt;chr&gt; &quot;1&quot;, &quot;1&quot;, &quot;0.40&quot;
+## $ UNITS        &lt;chr&gt; &quot;.&quot;, &quot;.&quot;, &quot;mg/L&quot;
+## $ RPToMDL      &lt;lgl&gt; FALSE, FALSE, FALSE
+## $ BASIS        &lt;chr&gt; &quot;NA&quot;, &quot;NA&quot;, &quot;NA&quot;
+## $ DILUTION     &lt;chr&gt; &quot;1&quot;, &quot;1&quot;, &quot;1&quot;
+## $ SPIKELEVEL   &lt;lgl&gt; NA, NA, NA
+## $ RECOVERY     &lt;lgl&gt; NA, NA, NA
+## $ UPPERCL      &lt;lgl&gt; NA, NA, NA
+## $ LOWERCL      &lt;lgl&gt; NA, NA, NA
+## $ ANALYST      &lt;chr&gt; &quot;JMK&quot;, &quot;JMK&quot;, &quot;SM&quot;
+## $ PSOLIDS      &lt;lgl&gt; NA, NA, NA
+## $ LNOTE        &lt;lgl&gt; NA, NA, NA
+## $ ANOTE        &lt;lgl&gt; NA, NA, NA
+## $ LATITUDE     &lt;lgl&gt; NA, NA, NA
+## $ LONGITUDE    &lt;lgl&gt; NA, NA, NA
+## $ sComment     &lt;lgl&gt; NA, NA, NA
+## $ SNOTE1       &lt;lgl&gt; NA, NA, NA
+## $ SNOTE2       &lt;lgl&gt; NA, NA, NA
+## $ SNOTE3       &lt;lgl&gt; NA, NA, NA
+## $ SNOTE4       &lt;lgl&gt; NA, NA, NA
+## $ SNOTE5       &lt;lgl&gt; NA, NA, NA
+## $ SNOTE6       &lt;lgl&gt; NA, NA, NA
+## $ SNOTE7       &lt;lgl&gt; NA, NA, NA
+## $ SNOTE8       &lt;lgl&gt; NA, NA, NA
+## $ SNOTE9       &lt;lgl&gt; NA, NA, NA
+## $ SNOTE10      &lt;lgl&gt; NA, NA, NA
+## $ ANALYTEORDER &lt;dbl&gt; 1, 2, 1</code></pre>
+<p>Alternatively, we could read in all of the files in the folder at
+once and bind them by row into one data frame. We do this by listing out
+all of the files in the folder using the function list.files(). We then
+apply the function read_excel() and bind all of the files into a
+dataframe using map_df().</p>
+<pre class="r"><code>raw_alpha_data &lt;-
+  list.files(&quot;data-raw/alpha-lab&quot;,
+             full.names = T) %&gt;% 
+  map_df(~read_excel(.))</code></pre>
 <p>Before transforming the results data into WQX format, we will create
 a function that will help to make the “Activity ID” of WQX file. To maek
 the Activity ID, it needs location ID, date, activity type, equipment
@@ -578,192 +454,80 @@ name, depth, time and equipment comment.</p>
 <pre class="r"><code>make_activity_id &lt;- function(location_id, date, activity_type, equipment_name, depth = NULL, time = NULL, equipment_comment = NULL) {
   YYYYMMDD &lt;- gsub(&#39;/&#39;, &#39;&#39;, date)
   activity &lt;- ifelse(activity_type == &quot;Sample-Routine&quot;, &quot;SR&quot;, &quot;FM&quot;)
-  equipment &lt;- ifelse(equipment_name == &quot;Probe/Sensor&quot;, &quot;PS&quot;, NA)
+  equipment &lt;- case_when(
+      equipment_name == &quot;Probe/Sensor&quot; ~ &quot;PS&quot;,
+      equipment_name == &quot;Water Bottle&quot; ~ &quot;WB&quot;,
+      TRUE ~ NA_character_
+    )
   hhmm &lt;- gsub(&#39;:&#39;, &#39;&#39;, time)
   equipment_comment &lt;- case_when(
     equipment_comment == &quot;Hydrolab Surveyor DS5 Multiprobe&quot; ~ &quot;Hydro&quot;,
     equipment_comment == &quot;AlgaeChek Ultra Fluorometer&quot; ~ &quot;Algae&quot;, 
     TRUE ~ NA_character_)
+  depth &lt;- ifelse(is.na(depth), &quot;&quot;, depth)
   paste(location_id, YYYYMMDD, hhmm,activity, equipment, depth, equipment_comment, sep = &quot;:&quot;)
 }</code></pre>
-<p>Now we could start transforming the data into WQX format. We will do
-this in three steps. The first step is to remove the empty columns based
-on their index in the dataset using the select() function. We will use
-the function clean_names() to make the column names easier to work
-with.Then (%&gt;%) we will remove the columns that we do not need
-(“ibv_svr4”, “chl”, “pcy”) based on the column name. We will also filter
-the rows of the dataset based on the pattern that there will be at least
-3 groups of digits in the date column (eg. 01/26/2022 contains three
-group of digits “01”, “26”, and “2022”). This will filter out the rows
-that do not contain results value.Lastly, we will rename the water
-quality variables into WQX appropriate water quality variables.</p>
-<pre class="r"><code>formatted_data &lt;- all_raw_data %&gt;% 
-  select(-c(3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29)) %&gt;% 
+<p>To transform the data into WQX format, we will first run the function
+clean_names() to make the column names easier to work with. Then we
+create columns based on WQX schema. We will then drop the first 48
+columns from the original report. Lastly, we will reorder the data.</p>
+<pre class="r"><code>formatted_data &lt;- raw_alpha_data %&gt;%
   clean_names() %&gt;%
-  select(-c(&quot;ibv_svr4&quot;, &quot;chl&quot;, &quot;pcy&quot;)) %&gt;%
-  filter(str_count(date, &quot;\\d+&quot;) &gt; 2) %&gt;% 
-  rename(&quot;Temperature, water&quot; = &quot;temp&quot;,
-         &quot;Specific conductance&quot; = &quot;sp_cond&quot;,
-         &quot;Resistivity&quot; = &quot;res&quot;,
-         &quot;Salinity&quot; = &quot;sal&quot;,
-         &quot;Total dissolved solids&quot; = &quot;tds&quot;,
-         &quot;Dissolved oxygen saturation&quot; = &quot;do_percent&quot;,
-         &quot;Dissolved oxygen (DO)&quot; = &quot;do&quot;,
-         &quot;pH&quot; = &quot;p_h&quot;,
-         &quot;Turbidity&quot; = &quot;turb&quot;,
-         &quot;Monitoring Location ID&quot; = location_id) %&gt;% glimpse()</code></pre>
-<pre><code>## Rows: 2
-## Columns: 13
-## $ date                          &lt;chr&gt; &quot;01/26/22&quot;, &quot;02/21/22&quot;
-## $ time                          &lt;chr&gt; &quot;11:13:37&quot;, &quot;14:58:35&quot;
-## $ `Temperature, water`          &lt;chr&gt; &quot;5.95&quot;, &quot;10.75&quot;
-## $ depth10                       &lt;chr&gt; &quot;.195&quot;, &quot;.489&quot;
-## $ `Specific conductance`        &lt;chr&gt; &quot;.3164&quot;, &quot;.354&quot;
-## $ Resistivity                   &lt;chr&gt; &quot;3.16&quot;, &quot;2.825&quot;
-## $ Salinity                      &lt;chr&gt; &quot;.15&quot;, &quot;.17&quot;
-## $ `Total dissolved solids`      &lt;chr&gt; &quot;.2025&quot;, &quot;.2265&quot;
-## $ `Dissolved oxygen saturation` &lt;chr&gt; &quot;80.8&quot;, &quot;118.6&quot;
-## $ `Dissolved oxygen (DO)`       &lt;chr&gt; &quot;10.13&quot;, &quot;13.15&quot;
-## $ pH                            &lt;chr&gt; &quot;7.4&quot;, &quot;8.64&quot;
-## $ Turbidity                     &lt;chr&gt; &quot;0&quot;, &quot;9.6&quot;
-## $ `Monitoring Location ID`      &lt;chr&gt; &quot;FC1&quot;, &quot;LPTNT&quot;</code></pre>
-<p>In the second step, we pivot the water quality variables from short
-form to long form. We will call the new column containing the names
-“Characteristic Name” and the column containing the values “Result
-Value”.</p>
-<pre class="r"><code>pivotted_data &lt;- formatted_data %&gt;% 
-  pivot_longer(!c(date, time, depth10, `Monitoring Location ID`), names_to = &quot;Characteristic Name&quot;, &quot;values_to&quot; = &quot;Result Value&quot;) %&gt;% glimpse()</code></pre>
-<pre><code>## Rows: 18
-## Columns: 6
-## $ date                     &lt;chr&gt; &quot;01/26/22&quot;, &quot;01/26/22&quot;, &quot;01/26/22&quot;, &quot;01/26/22…
-## $ time                     &lt;chr&gt; &quot;11:13:37&quot;, &quot;11:13:37&quot;, &quot;11:13:37&quot;, &quot;11:13:37…
-## $ depth10                  &lt;chr&gt; &quot;.195&quot;, &quot;.195&quot;, &quot;.195&quot;, &quot;.195&quot;, &quot;.195&quot;, &quot;.195…
-## $ `Monitoring Location ID` &lt;chr&gt; &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC…
-## $ `Characteristic Name`    &lt;chr&gt; &quot;Temperature, water&quot;, &quot;Specific conductance&quot;,…
-## $ `Result Value`           &lt;chr&gt; &quot;5.95&quot;, &quot;.3164&quot;, &quot;3.16&quot;, &quot;.15&quot;, &quot;.2025&quot;, &quot;80.…</code></pre>
-<p>In the last step, we format our data frame into the final WQX format.
-This involves creating the correct columns of the BVR WQX schema,
-removing the columns we do not use, and order the columns in the same
-order as the schema.</p>
-<pre class="r"><code>hydrolab_formatted_for_wqx &lt;- pivotted_data %&gt;% 
-  mutate(&quot;Project ID&quot; = project_id_lookup[`Monitoring Location ID`],
-         &quot;Activity ID User Supplied(PARENTs)&quot; = &quot;&quot;,
-         &quot;Activity Type&quot; = &quot;Field Msr/Obs&quot;,
-         &quot;Activity Media Name&quot; = &quot;Water&quot;,
-         &quot;Activity Start Date&quot; = format(mdy(date), &quot;%m/%d/%Y&quot;),
-         &quot;Activity Start Time&quot; = format(parse_date_time(time, c(&#39;HMS&#39;, &#39;HM&#39;)), &quot;%H:%M&quot;),
-         &quot;Activity Start Time Zone&quot; = &quot;PST&quot;,
-         &quot;Activity Depth/Height Measure&quot; = as.numeric(depth10),
-         &quot;Activity Depth/Height Unit&quot; = &quot;m&quot;,
-         &quot;Sample Collection Method ID&quot; = &quot;BVR Tribal SWQAPP&quot;,
-         &quot;Sample Collection Method Context&quot; = &quot;CA_BVR&quot;,
-         &quot;Sample Collection Equipment Name&quot; = &quot;Probe/Sensor&quot;,
-         &quot;Sample Collection Equipment Comment&quot; = &quot;Hydrolab Surveyor DS5 Multiprobe&quot;,
-         &quot;Characteristic Name&quot; = `Characteristic Name`,
-         &quot;Result Unit&quot; = unit_lookup[`Characteristic Name`],
-         &quot;Characteristic Name User Supplied&quot; = &quot;&quot;,
-         &quot;Method Speciation&quot; = &quot;&quot;,
-         &quot;Result Detection Condition&quot; = &quot;&quot;,
-         &quot;Result Value&quot; = `Result Value`,
-         &quot;Result Unit&quot; = `Result Unit`,
-         &quot;Result Measure Qualifier&quot; = &quot;&quot;,
-         &quot;Result Sample Fraction&quot; = &quot;&quot;,
-         &quot;Result Status ID&quot; = &quot;Final&quot;,
-         &quot;ResultTemperatureBasis&quot; = &quot;&quot;,
-         &quot;Statistical Base Code&quot; = &quot;&quot;,
-         &quot;ResultTimeBasis&quot; = &quot;&quot;,
-         &quot;Result Value Type&quot; = &quot;Actual&quot;,
-         &quot;Activity ID (CHILD-subset)&quot; = make_activity_id(location_id = `Monitoring Location ID`,
-                                          date = `Activity Start Date`,
-                                          time = `Activity Start Time`,
-                                          activity_type = `Activity Type`,
-                                          equipment_name = `Sample Collection Equipment Name`,
-                                          depth = `Activity Depth/Height Measure`,
-                                          equipment_comment = `Sample Collection Equipment Comment`),
-         &quot;Result Analytical Method ID&quot; = &quot;&quot;,
-         &quot;Result Analytical Method Context&quot; = &quot;&quot;,
-         &quot;Analysis Start Date&quot; = &quot;&quot;,
-         &quot;Result Detection/Quantitation Limit Type&quot; = &quot;&quot;,
-         &quot;Result Detection/Quantitation Limit Measure&quot; = &quot;&quot;,
-         &quot;Result Detection/Quantitation Limit Unit&quot; = &quot;&quot;,
-         &quot;Result Comment&quot; = &quot;&quot;
-         
-         ) %&gt;% 
-  select(-c(date, depth10, time)) %&gt;% 
-  relocate(&quot;Project ID&quot;,
-           &quot;Monitoring Location ID&quot;,
-           &quot;Activity ID (CHILD-subset)&quot;,
-           &quot;Activity ID User Supplied(PARENTs)&quot;,
-           &quot;Activity Type&quot;,
-           &quot;Activity Media Name&quot;,
-           &quot;Activity Start Date&quot;,
-           &quot;Activity Start Time&quot;,
-           &quot;Activity Start Time Zone&quot;,
-           &quot;Activity Depth/Height Measure&quot;,
-           &quot;Activity Depth/Height Unit&quot;,
-           &quot;Sample Collection Method ID&quot;,
-           &quot;Sample Collection Method Context&quot;,
-           &quot;Sample Collection Equipment Name&quot;,
-           &quot;Sample Collection Equipment Comment&quot;,
-           &quot;Characteristic Name&quot;,
-           &quot;Characteristic Name User Supplied&quot;,
-           &quot;Method Speciation&quot;,
-           &quot;Result Detection Condition&quot;,
-           &quot;Result Value&quot;,
-           &quot;Result Unit&quot;,
-           &quot;Result Measure Qualifier&quot;,
-           &quot;Result Sample Fraction&quot;,
-           &quot;Result Status ID&quot;,
-           &quot;ResultTemperatureBasis&quot;,
-           &quot;Statistical Base Code&quot;,
-           &quot;ResultTimeBasis&quot;,
-           &quot;Result Value Type&quot;,
-           &quot;Result Analytical Method ID&quot;,
-           &quot;Result Analytical Method Context&quot;,
-           &quot;Analysis Start Date&quot;,
-           &quot;Result Detection/Quantitation Limit Measure&quot;,
-           &quot;Result Detection/Quantitation Limit Unit&quot;,
-           &quot;Result Comment&quot;
-           ) %&gt;% glimpse()</code></pre>
-<pre><code>## Rows: 18
-## Columns: 35
-## $ `Project ID`                                  &lt;chr&gt; &quot;CS&quot;, &quot;CS&quot;, &quot;CS&quot;, &quot;CS&quot;, …
-## $ `Monitoring Location ID`                      &lt;chr&gt; &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC…
-## $ `Activity ID (CHILD-subset)`                  &lt;chr&gt; &quot;FC1:01262022:1113:FM:PS…
-## $ `Activity ID User Supplied(PARENTs)`          &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Activity Type`                               &lt;chr&gt; &quot;Field Msr/Obs&quot;, &quot;Field …
-## $ `Activity Media Name`                         &lt;chr&gt; &quot;Water&quot;, &quot;Water&quot;, &quot;Water…
-## $ `Activity Start Date`                         &lt;chr&gt; &quot;01/26/2022&quot;, &quot;01/26/202…
-## $ `Activity Start Time`                         &lt;chr&gt; &quot;11:13&quot;, &quot;11:13&quot;, &quot;11:13…
-## $ `Activity Start Time Zone`                    &lt;chr&gt; &quot;PST&quot;, &quot;PST&quot;, &quot;PST&quot;, &quot;PS…
-## $ `Activity Depth/Height Measure`               &lt;dbl&gt; 0.195, 0.195, 0.195, 0.1…
-## $ `Activity Depth/Height Unit`                  &lt;chr&gt; &quot;m&quot;, &quot;m&quot;, &quot;m&quot;, &quot;m&quot;, &quot;m&quot;,…
-## $ `Sample Collection Method ID`                 &lt;chr&gt; &quot;BVR Tribal SWQAPP&quot;, &quot;BV…
-## $ `Sample Collection Method Context`            &lt;chr&gt; &quot;CA_BVR&quot;, &quot;CA_BVR&quot;, &quot;CA_…
-## $ `Sample Collection Equipment Name`            &lt;chr&gt; &quot;Probe/Sensor&quot;, &quot;Probe/S…
-## $ `Sample Collection Equipment Comment`         &lt;chr&gt; &quot;Hydrolab Surveyor DS5 M…
-## $ `Characteristic Name`                         &lt;chr&gt; &quot;Temperature, water&quot;, &quot;S…
-## $ `Characteristic Name User Supplied`           &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Method Speciation`                           &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Result Detection Condition`                  &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Result Value`                                &lt;chr&gt; &quot;5.95&quot;, &quot;.3164&quot;, &quot;3.16&quot;,…
-## $ `Result Unit`                                 &lt;chr&gt; &quot;deg C&quot;, &quot;mS/cm&quot;, &quot;KOhm/…
-## $ `Result Measure Qualifier`                    &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Result Sample Fraction`                      &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Result Status ID`                            &lt;chr&gt; &quot;Final&quot;, &quot;Final&quot;, &quot;Final…
-## $ ResultTemperatureBasis                        &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Statistical Base Code`                       &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ ResultTimeBasis                               &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Result Value Type`                           &lt;chr&gt; &quot;Actual&quot;, &quot;Actual&quot;, &quot;Act…
-## $ `Result Analytical Method ID`                 &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Result Analytical Method Context`            &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Analysis Start Date`                         &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Result Detection/Quantitation Limit Measure` &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Result Detection/Quantitation Limit Unit`    &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Result Comment`                              &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …
-## $ `Result Detection/Quantitation Limit Type`    &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, …</code></pre>
-<p>Lastly, we download the formatted data using write_csv().</p>
-<pre class="r"><code>write_csv(hydrolab_formatted_for_wqx, &quot;data/hydrolab_wqx.csv&quot;)</code></pre>
+  # Are we using calwatch as project ID?
+  mutate(
+    &quot;Project ID&quot; = &quot;CalWATCH&quot;,
+    # No location ID or sampleIDin these alpha lab data
+    &quot;Monitoring Location ID&quot; = NA,
+    &quot;Activity ID User Supplied (PARENTs)&quot; = NA,
+    &quot;Activity Type&quot; = &quot;Sample-Routine&quot;,
+    &quot;Activity Media Name&quot; = matrix,
+    &quot;Activity Start Date&quot; = format(mdy_hms(sampdate), &quot;%m/%d/%Y&quot;),
+    &quot;Activity Start Time&quot; = format(mdy_hms(sampdate), &quot;%H:%M&quot;),
+    &quot;Activity Start Time Zone&quot; = &quot;PST&quot;,
+    # not depth or height
+    &quot;Activity Depth/Height Measure&quot; = NA,
+    &quot;Activity Depth/Height Unit&quot; = NA,
+    &quot;Sample Collection Method ID&quot; = &quot;BVR SWQAPP&quot;,
+    &quot;Sample Collection Method Context&quot; = &quot;CA_BVR&quot;,
+    &quot;Sample Collection Equipment Name&quot; = &quot;Water Bottle&quot;,
+    &quot;Sample Collection Equipment Comment&quot; = NA,
+    &quot;Characteristic Name&quot; = analyte,
+    &quot;Characteristic Name User Supplied&quot; = NA,
+    &quot;Method Speciation&quot; = NA,
+    &quot;Result Detection Condition&quot; = ifelse(result == &quot;Absent&quot;, &quot;Not Detected&quot;, NA_character_),
+    &quot;Result Value&quot; = ifelse(result == &quot;Absent&quot; | result == &quot;ND&quot;, NA_character_, result),
+    &quot;Result Unit&quot; = ifelse(units == &quot;.&quot;, NA_character_, units),
+    &quot;Result Measure Qualifier&quot; = NA,
+    &quot;Result Sample Fraction&quot; = NA,
+    &quot;Result Status ID&quot; = &quot;Final&quot;,
+    &quot;ResultTemperatureBasis&quot; = NA,
+    &quot;Statistical Base Code&quot; = NA,
+    &quot;ResultTimeBasis&quot; = NA,
+    &quot;Result Value Type&quot; = &quot;Actual&quot;,
+    &quot;Result Analytical Method ID&quot; = ifelse(is.na(methodcode), NA_character_, methodcode),
+    &quot;Activity ID (CHILD-subset)&quot; = make_activity_id(
+      location_id = `Monitoring Location ID`,
+      date = `Activity Start Date`,
+      time = `Activity Start Time`,
+      activity_type = `Activity Type`,
+      equipment_name = `Sample Collection Equipment Name`,
+      depth = `Activity Depth/Height Measure`
+    ),
+    # Casnumber? Context APHA? 
+    &quot;Result Analytical Method ID&quot; = casnumber,
+    &quot;Result Analytical Method Context&quot; = &quot;APHA&quot;,
+    &quot;Analysis Start Date&quot; = format(mdy_hms(anadate), &quot;%m/%d/%Y&quot;),
+    &quot;Result Detection/Quantitation Limit Type&quot; = &quot;Lower Reporting Limit&quot;,
+    &quot;Result Detection/Quantitation Limit Measure&quot; = ifelse(dl == &quot;NA&quot;, NA_character_, dl),
+    &quot;Result Detection/Quantitation Limit Unit&quot; = ifelse(units == &quot;.&quot;, NA_character_, units),
+    &quot;Result Comment&quot; = NA
+    
+  )</code></pre>
+<pre class="r"><code>alpha_lab_formatted_for_wqx &lt;- formatted_data %&gt;% 
+  select(-c(0:48)) %&gt;% 
+  relocate(&quot;Activity ID (CHILD-subset)&quot;, .before = &quot;Activity ID User Supplied (PARENTs)&quot;)</code></pre>
+<p>Lastly we export the data to a CSV file.</p>
+<pre class="r"><code>write_csv(alpha_lab_formatted_for_wqx, &quot;data/alpha_lab_wqx.csv&quot;, na = &quot;&quot;)</code></pre>
 </div>
 </div>
 

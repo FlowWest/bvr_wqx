@@ -1,5 +1,5 @@
 ---
-title: "HydroLab Data Wrangling and QC"
+title: "HydroLab Data Wrangling"
 author: "Inigo Peng"
 date: "2022-10-10"
 output: html_document
@@ -11,13 +11,13 @@ output: html_document
 
 Hydrolab DS5 Multiprobe
 
-**File format:**
+**Raw File format:**
 
 CSVs with location in file title
 
 **Monitoring (Project ID)**
 
-Clear Lake Water QUality (CLM), Clear Lake Harmful Algal Bloom (HAB), Marina Sampling (MS), Big Valley shoreline sites(BVSHORE), Creek/Hitch Sampling (CS), Storm Water Sampling (SW).
+Clear Lake Water Quality (CLM), Clear Lake Harmful Algal Bloom (HAB), Marina Sampling (MS), Big Valley shoreline sites(BVSHORE), Creek/Hitch Sampling (CS), Storm Water Sampling (SW).
 
 **WQX submittal required?**
 
