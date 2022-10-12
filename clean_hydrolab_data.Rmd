@@ -1,0 +1,232 @@
+---
+title: "HydroLab Data Wrangling and QC"
+author: "Inigo Peng"
+date: "2022-10-10"
+output: html_document
+---
+# HydroLab Data
+# Description of Data
+
+**Collection method:**
+
+Hydrolab DS5 Multiprobe
+
+**File format:**
+
+CSVs with location in file title
+
+**Monitoring (Project ID)**
+
+Clear Lake Water QUality (CLM), Clear Lake Harmful Algal Bloom (HAB), Marina Sampling (MS), Big Valley shoreline sites(BVSHORE), Creek/Hitch Sampling (CS), Storm Water Sampling (SW).
+
+**WQX submittal required?**
+
+Yes
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, fig.width=15, fig.height=10)
+
+library(tidyverse)
+library(dplyr)
+library(janitor)
+library(lubridate)
+library(hms)
+```
+
+## Data transformations
+
+First we need to load lookup table that contains project ID lookup (eg.location FC1's corresponding project ID is CS) and unit lookup (eg. Temperature, water - deg C)
+```{r}
+load("data-raw/lookup_objects.rdata")
+```
+
+Read in individual Hydro-lab csv using the function read_csv(); we make sure the read_csv() function is reading each column type as character instead of inferring the column type.
+
+```{r}
+raw_full_data <- read_csv('data-raw/hydro-lab/LPTNT.csv', col_types = "c") %>% glimpse
+```
+
+Since the sensor dataset is quite messy, we need to decide what we need and what we discard. We parse the first line (n_max = 1) as the log file name contains the location of the sensor. We then extract the location from this line by matching it to a pattern. 
+```{r}
+raw_location <- read_csv('data-raw/hydro-lab/LPTNT.csv', col_names = FALSE, n_max = 1)
+
+#we need to convert it to a vector to extract the location
+
+raw_location <- c(raw_location$X1)
+regex_pattern <- "\\w+$"
+location_id <- unlist(
+  str_extract_all(raw_location, regex_pattern)
+)
+
+print(location_id)
+```
+
+The results data starts after the first five lines.
+```{r}
+raw_results_data <- read_csv('data-raw/hydro-lab/LPTNT.csv', skip = 5, col_types = "c") %>% glimpse
+```
+If there are multiple files in a folder, we could read through all of the files and bind them together by rows.
+```{r}
+# We create a list of available hydro-lab files 
+raw_file_list <-
+  list.files("data-raw/hydro-lab",
+             full.names = T) 
+
+# Create an empty list to append each data frame from each file
+datalist = list()
+
+# We loop through the file list; for each file, we parse the files location and add it to the dataframe of each file.
+
+for (file in raw_file_list){
+  raw_location <- read_csv(file, col_names = FALSE, n_max = 1)
+  raw_location <- c(raw_location$X1)
+  regex_pattern <- "\\w+$"
+  location_id <- unlist(
+    str_extract_all(raw_location,
+                    regex_pattern))
+  print(location_id)
+  raw_results_data <- read_csv(file, skip = 5, col_types = "c") %>% 
+    mutate("location_id" = location_id)
+  datalist[[file]] <- raw_results_data
+}
+
+# Bind each dataframe together by rows
+all_raw_data <- do.call(rbind, datalist) %>% glimpse()
+```
+Before transforming the results data into WQX format, we will create a function that will help to make the "Activity ID" of WQX file. To maek the Activity ID, it needs location ID, date, activity type, equipment name, depth, time and equipment comment.
+
+```{r}
+make_activity_id <- function(location_id, date, activity_type, equipment_name, depth = NULL, time = NULL, equipment_comment = NULL) {
+  YYYYMMDD <- gsub('/', '', date)
+  activity <- ifelse(activity_type == "Sample-Routine", "SR", "FM")
+  equipment <- ifelse(equipment_name == "Probe/Sensor", "PS", NA)
+  hhmm <- gsub(':', '', time)
+  equipment_comment <- case_when(
+    equipment_comment == "Hydrolab Surveyor DS5 Multiprobe" ~ "Hydro",
+    equipment_comment == "AlgaeChek Ultra Fluorometer" ~ "Algae", 
+    TRUE ~ NA_character_)
+  paste(location_id, YYYYMMDD, hhmm,activity, equipment, depth, equipment_comment, sep = ":")
+}
+```
+Now we could start transforming the data into WQX format. We will do this in three steps. The first step is to remove the empty columns based on their index in the dataset using the select() function. We will use the function clean_names() to make the column names easier to work with.Then (%>%) we will remove the columns that we do not need ("ibv_svr4", "chl", "pcy") based on the column name. We will also filter the rows of the dataset based on the pattern that there will be at least 3 groups of digits in the date column (eg. 01/26/2022 contains three group of digits "01", "26", and "2022"). This will filter out the rows that do not contain results value.Lastly, we  will rename the water quality variables into WQX appropriate water quality variables.
+```{r}
+formatted_data <- all_raw_data %>% 
+  select(-c(3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29)) %>% 
+  clean_names() %>%
+  select(-c("ibv_svr4", "chl", "pcy")) %>%
+  filter(str_count(date, "\\d+") > 2) %>% 
+  rename("Temperature, water" = "temp",
+         "Specific conductance" = "sp_cond",
+         "Resistivity" = "res",
+         "Salinity" = "sal",
+         "Total dissolved solids" = "tds",
+         "Dissolved oxygen saturation" = "do_percent",
+         "Dissolved oxygen (DO)" = "do",
+         "pH" = "p_h",
+         "Turbidity" = "turb",
+         "Monitoring Location ID" = location_id) %>% glimpse()
+```
+ 
+In the second step, we pivot the water quality variables from short form to long form. We will call the new column containing the names "Characteristic Name" and the column containing the values "Result Value".
+
+```{r}
+pivotted_data <- formatted_data %>% 
+  pivot_longer(!c(date, time, depth10, `Monitoring Location ID`), names_to = "Characteristic Name", "values_to" = "Result Value") %>% glimpse()
+```
+
+In the last step, we format our data frame into the final WQX format. This involves creating the correct columns of the BVR WQX schema, removing the columns we do not use, and order the columns in the same order as the schema.
+```{r}
+hydrolab_formatted_for_wqx <- pivotted_data %>% 
+  mutate("Project ID" = project_id_lookup[`Monitoring Location ID`],
+         "Activity ID User Supplied(PARENTs)" = "",
+         "Activity Type" = "Field Msr/Obs",
+         "Activity Media Name" = "Water",
+         "Activity Start Date" = format(mdy(date), "%m/%d/%Y"),
+         "Activity Start Time" = format(parse_date_time(time, c('HMS', 'HM')), "%H:%M"),
+         "Activity Start Time Zone" = "PST",
+         "Activity Depth/Height Measure" = as.numeric(depth10),
+         "Activity Depth/Height Unit" = "m",
+         "Sample Collection Method ID" = "BVR Tribal SWQAPP",
+         "Sample Collection Method Context" = "CA_BVR",
+         "Sample Collection Equipment Name" = "Probe/Sensor",
+         "Sample Collection Equipment Comment" = "Hydrolab Surveyor DS5 Multiprobe",
+         "Characteristic Name" = `Characteristic Name`,
+         "Result Unit" = unit_lookup[`Characteristic Name`],
+         "Characteristic Name User Supplied" = "",
+         "Method Speciation" = "",
+         "Result Detection Condition" = "",
+         "Result Value" = `Result Value`,
+         "Result Unit" = `Result Unit`,
+         "Result Measure Qualifier" = "",
+         "Result Sample Fraction" = "",
+         "Result Status ID" = "Final",
+         "ResultTemperatureBasis" = "",
+         "Statistical Base Code" = "",
+         "ResultTimeBasis" = "",
+         "Result Value Type" = "Actual",
+         "Activity ID (CHILD-subset)" = make_activity_id(location_id = `Monitoring Location ID`,
+                                          date = `Activity Start Date`,
+                                          time = `Activity Start Time`,
+                                          activity_type = `Activity Type`,
+                                          equipment_name = `Sample Collection Equipment Name`,
+                                          depth = `Activity Depth/Height Measure`,
+                                          equipment_comment = `Sample Collection Equipment Comment`),
+         "Result Analytical Method ID" = "",
+         "Result Analytical Method Context" = "",
+         "Analysis Start Date" = "",
+         "Result Detection/Quantitation Limit Type" = "",
+         "Result Detection/Quantitation Limit Measure" = "",
+         "Result Detection/Quantitation Limit Unit" = "",
+         "Result Comment" = ""
+         
+         ) %>% 
+  select(-c(date, depth10, time)) %>% 
+  relocate("Project ID",
+           "Monitoring Location ID",
+           "Activity ID (CHILD-subset)",
+           "Activity ID User Supplied(PARENTs)",
+           "Activity Type",
+           "Activity Media Name",
+           "Activity Start Date",
+           "Activity Start Time",
+           "Activity Start Time Zone",
+           "Activity Depth/Height Measure",
+           "Activity Depth/Height Unit",
+           "Sample Collection Method ID",
+           "Sample Collection Method Context",
+           "Sample Collection Equipment Name",
+           "Sample Collection Equipment Comment",
+           "Characteristic Name",
+           "Characteristic Name User Supplied",
+           "Method Speciation",
+           "Result Detection Condition",
+           "Result Value",
+           "Result Unit",
+           "Result Measure Qualifier",
+           "Result Sample Fraction",
+           "Result Status ID",
+           "ResultTemperatureBasis",
+           "Statistical Base Code",
+           "ResultTimeBasis",
+           "Result Value Type",
+           "Result Analytical Method ID",
+           "Result Analytical Method Context",
+           "Analysis Start Date",
+           "Result Detection/Quantitation Limit Measure",
+           "Result Detection/Quantitation Limit Unit",
+           "Result Comment"
+           ) %>% glimpse()
+```
+
+Lastly, we download the formatted data using write_csv().
+
+```{r}
+write_csv(hydrolab_formatted_for_wqx, "data/hydrolab_wqx.csv")
+```
+
+
+
+
+
+
+
