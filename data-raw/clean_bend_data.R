@@ -60,7 +60,7 @@ bend_wqx <- bend_full_df %>%
          "Sample Collection Equipment Name" = "Water Bottle",
          "Sample Collection Equipment Comment" = NA,
         #Should we use microcystin/nod. or just microcystin
-         "Characteristic Name" = target,
+         "Characteristic Name" = ifelse(target == "Microcystin/Nod.", "Microcystin", target),
          "Characteristic Name User Supplied" = NA,
          "Method Speciation" = NA,
          "Result Detection Condition" = ifelse(result == "ND", "Not Detected", NA),
@@ -90,9 +90,13 @@ bend_wqx <- bend_full_df %>%
                                                         depth = `Activity Depth/Height Measure`)
   ) %>% 
   relocate("Activity ID (CHILD-subset)", .before = "Activity ID User Supplied (PARENTs)") %>% 
-  select(-c(0:13)) %>% glimpse
+  select(-c(0:13))
+
+bend_wqx <- bend_wqx %>% 
+  mutate("Result Unit" = ifelse(bend_wqx$`Result Unit` == "µg/L", "ug/L", bend_wqx$`Result Unit`),
+         "Result Detection/Quantitation Limit Unit" = ifelse(bend_wqx$`Result Detection/Quantitation Limit Unit` == "µg/L", "ug/L", bend_wqx$`Result Detection/Quantitation Limit Unit`))
 # ------------------------------------------------------------------------------
-write.csv(bend_wqx, "data/bend_wqx.csv", na = "", fileEncoding="Windows-1252", row.names = FALSE)
+write_csv(bend_wqx, "data/bend_wqx.csv", na = "")
 # write_csv(bend_wqx, "data/bend_wqx.csv", na = "")
 
          
