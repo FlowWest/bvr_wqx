@@ -300,8 +300,8 @@ pre code {
   border-radius: 4px;
 }
 
-.tabset-dropdown > .nav-tabs > li.active:before {
-  content: "";
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
   font-family: 'Glyphicons Halflings';
   display: inline-block;
   padding: 10px;
@@ -309,16 +309,9 @@ pre code {
 }
 
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
-  content: "";
-  border: none;
-}
-
-.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
-  content: "";
+  content: "\e258";
   font-family: 'Glyphicons Halflings';
-  display: inline-block;
-  padding: 10px;
-  border-right: 1px solid #ddd;
+  border: none;
 }
 
 .tabset-dropdown > .nav-tabs > li.active {
@@ -387,7 +380,7 @@ pre code {
 <h2>Data transformations</h2>
 <p>Read in individual AlphaLab excel file using the function
 read_excel().</p>
-<pre class="r"><code>raw_alpha_data &lt;- read_excel(&#39;data-raw/alpha-lab/22G2998 FINAL EXCEL 09 Aug 22 1018.xls&#39;) %&gt;% glimpse</code></pre>
+<pre class="r"><code>raw_alpha_data &lt;- read_excel(&#39;data-raw/alpha-lab/22G2998 FINAL EXCEL 09 Aug 22 1018.xls&#39;) |&gt; glimpse()</code></pre>
 <pre><code>## Rows: 3
 ## Columns: 48
 ## $ CLIENT       &lt;chr&gt; &quot;Big Valley Rancheria&quot;, &quot;Big Valley Rancheria&quot;, &quot;Big Vall…
@@ -445,7 +438,7 @@ apply the function read_excel() and bind all of the files into a
 dataframe using map_df().</p>
 <pre class="r"><code>raw_alpha_data &lt;-
   list.files(&quot;data-raw/alpha-lab&quot;,
-             full.names = T) %&gt;% 
+             full.names = T) |&gt; 
   map_df(~read_excel(.))</code></pre>
 <p>Before transforming the results data into WQX format, we will create
 a function that will help to make the “Activity ID” of WQX file. To maek
@@ -471,8 +464,8 @@ name, depth, time and equipment comment.</p>
 clean_names() to make the column names easier to work with. Then we
 create columns based on WQX schema. We will then drop the first 48
 columns from the original report. Lastly, we will reorder the data.</p>
-<pre class="r"><code>formatted_data &lt;- raw_alpha_data %&gt;%
-  clean_names() %&gt;%
+<pre class="r"><code>formatted_data &lt;- raw_alpha_data |&gt;
+  clean_names() |&gt;
   # Are we using calwatch as project ID?
   mutate(
     &quot;Project ID&quot; = &quot;CalWATCH&quot;,
@@ -523,8 +516,8 @@ columns from the original report. Lastly, we will reorder the data.</p>
     &quot;Result Comment&quot; = NA
     
   )</code></pre>
-<pre class="r"><code>alpha_lab_formatted_for_wqx &lt;- formatted_data %&gt;% 
-  select(-c(0:48)) %&gt;% 
+<pre class="r"><code>alpha_lab_formatted_for_wqx &lt;- formatted_data |&gt; 
+  select(-c(0:48)) |&gt; 
   relocate(&quot;Activity ID (CHILD-subset)&quot;, .before = &quot;Activity ID User Supplied (PARENTs)&quot;)</code></pre>
 <p>Lastly we export the data to a CSV file.</p>
 <pre class="r"><code>write_csv(alpha_lab_formatted_for_wqx, &quot;data/alpha_lab_wqx.csv&quot;, na = &quot;&quot;)</code></pre>

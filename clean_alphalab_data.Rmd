@@ -38,7 +38,7 @@ library(lubridate)
 Read in individual AlphaLab excel file using the function read_excel().
 
 ```{r}
-raw_alpha_data <- read_excel('data-raw/alpha-lab/22G2998 FINAL EXCEL 09 Aug 22 1018.xls') %>% glimpse
+raw_alpha_data <- read_excel('data-raw/alpha-lab/22G2998 FINAL EXCEL 09 Aug 22 1018.xls') |> glimpse()
 ```
 
 Alternatively, we could read in all of the files in the folder at once and bind them by row into one data frame. We do this by listing out all of the files in the folder using the function list.files(). We then apply the function read_excel() and bind all of the files into a dataframe using map_df().
@@ -46,7 +46,7 @@ Alternatively, we could read in all of the files in the folder at once and bind 
 ```{r}
 raw_alpha_data <-
   list.files("data-raw/alpha-lab",
-             full.names = T) %>% 
+             full.names = T) |> 
   map_df(~read_excel(.))
 ```
 
@@ -74,8 +74,8 @@ make_activity_id <- function(location_id, date, activity_type, equipment_name, d
 To transform the data into WQX format, we will first run the function clean_names() to make the column names easier to work with. Then we create columns based on WQX schema. We will then drop the first 48 columns from the original report. Lastly, we will reorder the data.
 
 ```{r}
-formatted_data <- raw_alpha_data %>%
-  clean_names() %>%
+formatted_data <- raw_alpha_data |>
+  clean_names() |>
   # Are we using calwatch as project ID?
   mutate(
     "Project ID" = "CalWATCH",
@@ -128,8 +128,8 @@ formatted_data <- raw_alpha_data %>%
   )
 ```
 ```{r}
-alpha_lab_formatted_for_wqx <- formatted_data %>% 
-  select(-c(0:48)) %>% 
+alpha_lab_formatted_for_wqx <- formatted_data |> 
+  select(-c(0:48)) |> 
   relocate("Activity ID (CHILD-subset)", .before = "Activity ID User Supplied (PARENTs)")
 ```
 
