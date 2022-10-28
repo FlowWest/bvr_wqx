@@ -71,12 +71,12 @@ clean_alpha_lab <- raw_alpha_lab %>%
     "Sample Collection Equipment Comment" = NA,
     "Characteristic Name" = analyte,
     "Characteristic Name User Supplied" = NA,
-    "Method Speciation" = NA,
+    "Method Speciation" = ifelse(analyte == "Nitrate as N", "as N", NA_character_),
     "Result Detection Condition" = ifelse(result == "Absent", "Not Detected", NA_character_),
     "Result Value" = ifelse(result == "Absent" | result == "ND", NA_character_, result),
     "Result Unit" = ifelse(units == ".", NA_character_, units),
     "Result Measure Qualifier" = NA,
-    "Result Sample Fraction" = NA,
+    "Result Sample Fraction" = "Total",
     "Result Status ID" = "Final",
     "ResultTemperatureBasis" = NA,
     "Statistical Base Code" = NA,
@@ -92,8 +92,7 @@ clean_alpha_lab <- raw_alpha_lab %>%
       depth = `Activity Depth/Height Measure`
     ),
     # Casnumber? Context APHA? 
-    "Result Analytical Method ID" = casnumber,
-    "Result Analytical Method Context" = "APHA",
+    "Result Analytical Method ID" = ifelse(casnumber == "NA", NA_character_, casnumber),
     "Analysis Start Date" = format(mdy_hms(anadate), "%m/%d/%Y"),
     "Result Detection/Quantitation Limit Type" = "Lower Reporting Limit",
     "Result Detection/Quantitation Limit Measure" = ifelse(dl == "NA", NA_character_, dl),
@@ -103,5 +102,9 @@ clean_alpha_lab <- raw_alpha_lab %>%
   ) %>%
   select(-c(0:48)) %>% 
   relocate("Activity ID (CHILD-subset)", .before = "Activity ID User Supplied (PARENTs)")
+
+clean_alpha_lab <- clean_alpha_lab %>% 
+  mutate("Result Analytical Method Context" = ifelse(is.na(clean_alpha_lab$`Result Analytical Method ID`), NA_character_,"APHA")) %>% 
+  relocate("Result Analytical Method Context", .before = "Analysis Start Date")
 
 write_csv(clean_alpha_lab, "data/alpha_lab_wqx.csv", na = "")
