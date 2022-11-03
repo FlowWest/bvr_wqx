@@ -3,6 +3,8 @@ library(readxl)
 library(ggplot2)
 library(janitor)
 library(lubridate)
+load("data-raw/lookup_objects.rdata")
+
 
 # calwatch - wqx submittal required?
 # ------------------------------------------------------------------------------
@@ -69,11 +71,15 @@ clean_alpha_lab <- raw_alpha_lab %>%
     "Sample Collection Method Context" = "CA_BVR",
     "Sample Collection Equipment Name" = "Water Bottle",
     "Sample Collection Equipment Comment" = NA,
-    "Characteristic Name" = analyte,
+    "Characteristic Name" = ifelse(analyte == "E. Coli", "Escherichia coli", analyte),
     "Characteristic Name User Supplied" = NA,
     "Method Speciation" = ifelse(analyte == "Nitrate as N", "as N", NA_character_),
-    "Result Detection Condition" = ifelse(result == "Absent", "Not Detected", NA_character_),
-    "Result Value" = ifelse(result == "Absent" | result == "ND", NA_character_, result),
+    "Result Detection Condition" = case_when(
+      result == "ND" ~ "Not Reported",
+      result == "Absent" ~ "Not Present",
+      result == "Present" ~ "Detected Not Quantified",
+      TRUE ~ NA_character_),
+    "Result Value" = ifelse(result == "Absent" | result == "ND" | result == "Present", NA_character_, result),
     "Result Unit" = ifelse(units == ".", NA_character_, units),
     "Result Measure Qualifier" = NA,
     "Result Sample Fraction" = "Total",
@@ -81,8 +87,8 @@ clean_alpha_lab <- raw_alpha_lab %>%
     "ResultTemperatureBasis" = NA,
     "Statistical Base Code" = NA,
     "ResultTimeBasis" = NA,
-    "Result Value Type" = "Actual",
-    "Result Analytical Method ID" = ifelse(is.na(methodcode), NA_character_, methodcode),
+    "Result Value Type" = ifelse(is.na(result), NA_character_, "Actual"),
+    "Result Analytical Method ID" = ifelse(is.na(methodname), NA_character_, method_lookup[methodname]),
     "Activity ID (CHILD-subset)" = make_activity_id(
       location_id = `Monitoring Location ID`,
       date = `Activity Start Date`,
@@ -92,9 +98,9 @@ clean_alpha_lab <- raw_alpha_lab %>%
       depth = `Activity Depth/Height Measure`
     ),
     # Casnumber? Context APHA? 
-    "Result Analytical Method ID" = ifelse(casnumber == "NA", NA_character_, casnumber),
+    # "Result Analytical Method ID" = ifelse(, NA_character_, casnumber),
     "Analysis Start Date" = format(mdy_hms(anadate), "%m/%d/%Y"),
-    "Result Detection/Quantitation Limit Type" = "Lower Reporting Limit",
+    "Result Detection/Quantitation Limit Type" = ifelse(dl == "NA", NA_character_, "Method Detection Level"),
     "Result Detection/Quantitation Limit Measure" = ifelse(dl == "NA", NA_character_, dl),
     "Result Detection/Quantitation Limit Unit" = ifelse(units == ".", NA_character_, units),
     "Result Comment" = NA
