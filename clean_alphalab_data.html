@@ -372,9 +372,8 @@ pre code {
 
 <div id="alphalab-data" class="section level1">
 <h1>AlphaLab Data</h1>
-</div>
-<div id="description-of-data" class="section level1">
-<h1>Description of Data</h1>
+<div id="description-of-data" class="section level2">
+<h2>Description of Data</h2>
 <p><strong>Collection method:</strong></p>
 <p>Sampling Bottles</p>
 <p><strong>Raw File format:</strong></p>
@@ -383,11 +382,23 @@ pre code {
 <p>Storm Water Sampling (SW), Tap Water Sampling (CalWATCH).</p>
 <p><strong>WQX submittal required?</strong></p>
 <p>Storm Water Sampling YES. Tap Water Sampling NO.</p>
+<p><strong>Note</strong></p>
+<p>Before running this script, make sure your working directory is set
+to the big_valley_wqx project. Check your working directory by type in
+the command getwd() in the console. Type ?getwd() (or any function) in
+the console or google search the function to see detained documentation
+on the function.</p>
+</div>
 <div id="data-transformations" class="section level2">
 <h2>Data transformations</h2>
-<p>Read in individual AlphaLab excel file using the function
-read_excel().</p>
+<p>First we need to load lookup table that contains project ID lookup
+(eg.location FC1’s corresponding project ID is CS), unit lookup (eg.
+Temperature, water - deg C), method lookup, and method context
+lookup.</p>
 <pre class="r"><code>load(&quot;lookup_objects.rdata&quot;)</code></pre>
+<p>Since the original files are in xls format, we could read in
+individual AlphaLab excel file using the function read_excel() from the
+readxl package.</p>
 <pre class="r"><code>raw_alpha_data &lt;- read_excel(&#39;data-raw/alpha-lab/22G2998 FINAL EXCEL 09 Aug 22 1018.xls&#39;) |&gt; glimpse()</code></pre>
 <pre><code>## Rows: 3
 ## Columns: 48
@@ -441,17 +452,83 @@ read_excel().</p>
 ## $ ANALYTEORDER &lt;dbl&gt; 1, 2, 1</code></pre>
 <p>Alternatively, we could read in all of the files in the folder at
 once and bind them by row into one data frame. We do this by listing out
-all of the files in the folder using the function list.files(). We then
-apply the function read_excel() and bind all of the files into a
-dataframe using map_df().</p>
-<pre class="r"><code>raw_alpha_lab &lt;-
-  list.files(&quot;data-raw/alpha-lab&quot;,
-             full.names = T) |&gt; 
-  map_df(~read_excel(.))</code></pre>
+all of the files in the folder using the function list.files().</p>
+<pre class="r"><code>file_list &lt;- list.files(&quot;data-raw/alpha-lab&quot;,
+             full.names = T)</code></pre>
+<p>We then create an empty data frame called raw_alpha_lab. We loop
+through the files in the folder, for each file, we use the above
+function read_excel() to read in the file. We then use the function
+rbind() to join each the data from each file to the empty data
+frame.</p>
+<pre class="r"><code>raw_alpha_lab &lt;- data.frame()
+
+for (file in file_list){
+  print(file)
+  raw_alpha_lab &lt;- rbind(raw_alpha_lab, read_excel(file))
+}</code></pre>
+<pre><code>## [1] &quot;data-raw/alpha-lab/22G2998 FINAL EXCEL 09 Aug 22 1018.xls&quot;
+## [1] &quot;data-raw/alpha-lab/22G3536 FINAL EXCEL 12 Aug 22 1339.xls&quot;
+## [1] &quot;data-raw/alpha-lab/22H0620 FINAL EXCEL 18 Aug 22 1526.xls&quot;
+## [1] &quot;data-raw/alpha-lab/22H1119 FINAL EXCEL 23 Aug 22 1404.xls&quot;</code></pre>
+<pre class="r"><code>raw_alpha_lab |&gt; glimpse()</code></pre>
+<pre><code>## Rows: 18
+## Columns: 48
+## $ CLIENT       &lt;chr&gt; &quot;Big Valley Rancheria&quot;, &quot;Big Valley Rancheria&quot;, &quot;Big Vall…
+## $ PROJECT      &lt;chr&gt; &quot;CAL-Watch&quot;, &quot;CAL-Watch&quot;, &quot;CAL-Watch&quot;, &quot;CAL-Watch&quot;, &quot;CAL-…
+## $ PROJECTNUM   &lt;chr&gt; &quot;[none]&quot;, &quot;[none]&quot;, &quot;[none]&quot;, &quot;[none]&quot;, &quot;[none]&quot;, &quot;[none]…
+## $ LabName      &lt;chr&gt; &quot;Alpha Analytical Laboratories, Inc.&quot;, &quot;Alpha Analytical …
+## $ SAMPLENAME   &lt;chr&gt; &quot;FID 351 1882&quot;, &quot;FID 351 1882&quot;, &quot;FID 351 1883&quot;, &quot;FID 332 …
+## $ LABSAMPID    &lt;chr&gt; &quot;22G2998-01&quot;, &quot;22G2998-01&quot;, &quot;22G2998-02&quot;, &quot;22G3536-01&quot;, &quot;…
+## $ MATRIX       &lt;chr&gt; &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;, &quot;Wa…
+## $ RPTMATRIX    &lt;chr&gt; &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;, &quot;Wa…
+## $ SAMPDATE     &lt;chr&gt; &quot;07/25/2022 09:00:00&quot;, &quot;07/25/2022 09:00:00&quot;, &quot;07/25/2022…
+## $ PREPDATE     &lt;chr&gt; &quot;07/25/2022 16:00:00&quot;, &quot;07/25/2022 16:00:00&quot;, &quot;07/26/2022…
+## $ ANADATE      &lt;chr&gt; &quot;07/26/2022 16:00:00&quot;, &quot;07/26/2022 16:00:00&quot;, &quot;07/26/2022…
+## $ BATCH        &lt;chr&gt; &quot;AG24440&quot;, &quot;AG24440&quot;, &quot;AG24424&quot;, &quot;AG24667&quot;, &quot;AG24667&quot;, &quot;A…
+## $ METHODCODE   &lt;chr&gt; &quot;PA&quot;, &quot;PA&quot;, &quot;Nitrate as N DW 300.0&quot;, &quot;PA&quot;, &quot;PA&quot;, &quot;Nitrate…
+## $ METHODNAME   &lt;chr&gt; &quot;SM9223B&quot;, &quot;SM9223B&quot;, &quot;EPA 300.0&quot;, &quot;SM9223B&quot;, &quot;SM9223B&quot;, …
+## $ PREPNAME     &lt;chr&gt; &quot;Microbiology Prep&quot;, &quot;Microbiology Prep&quot;, &quot;EPA 300.0&quot;, &quot;M…
+## $ ANALYTE      &lt;chr&gt; &quot;Total Coliforms&quot;, &quot;E. Coli&quot;, &quot;Nitrate as N&quot;, &quot;Total Coli…
+## $ CASNUMBER    &lt;chr&gt; &quot;NA&quot;, &quot;NA&quot;, &quot;14797-55-8&quot;, &quot;NA&quot;, &quot;NA&quot;, &quot;14797-55-8&quot;, &quot;NA&quot;,…
+## $ SURROGATE    &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, F…
+## $ TIC          &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, F…
+## $ Result       &lt;chr&gt; &quot;Absent&quot;, &quot;Absent&quot;, &quot;0.53&quot;, &quot;Absent&quot;, &quot;Absent&quot;, &quot;ND&quot;, &quot;Ab…
+## $ DL           &lt;chr&gt; NA, NA, &quot;0.040&quot;, NA, NA, &quot;0.040&quot;, NA, NA, &quot;0.040&quot;, NA, NA…
+## $ RL           &lt;chr&gt; &quot;1&quot;, &quot;1&quot;, &quot;0.40&quot;, &quot;1&quot;, &quot;1&quot;, &quot;0.40&quot;, &quot;1&quot;, &quot;1&quot;, &quot;0.40&quot;, &quot;1&quot;…
+## $ UNITS        &lt;chr&gt; &quot;.&quot;, &quot;.&quot;, &quot;mg/L&quot;, &quot;.&quot;, &quot;.&quot;, &quot;mg/L&quot;, &quot;.&quot;, &quot;.&quot;, &quot;mg/L&quot;, &quot;.&quot;…
+## $ RPToMDL      &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, F…
+## $ BASIS        &lt;chr&gt; &quot;NA&quot;, &quot;NA&quot;, &quot;NA&quot;, &quot;NA&quot;, &quot;NA&quot;, &quot;NA&quot;, &quot;NA&quot;, &quot;NA&quot;, &quot;NA&quot;, &quot;NA…
+## $ DILUTION     &lt;chr&gt; &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1…
+## $ SPIKELEVEL   &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ RECOVERY     &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ UPPERCL      &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ LOWERCL      &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ ANALYST      &lt;chr&gt; &quot;JMK&quot;, &quot;JMK&quot;, &quot;SM&quot;, &quot;AMD&quot;, &quot;AMD&quot;, &quot;SM&quot;, &quot;AMD&quot;, &quot;AMD&quot;, &quot;SM…
+## $ PSOLIDS      &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ LNOTE        &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ ANOTE        &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ LATITUDE     &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ LONGITUDE    &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ sComment     &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ SNOTE1       &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ SNOTE2       &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ SNOTE3       &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ SNOTE4       &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ SNOTE5       &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ SNOTE6       &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ SNOTE7       &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ SNOTE8       &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ SNOTE9       &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ SNOTE10      &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ ANALYTEORDER &lt;dbl&gt; 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 1</code></pre>
+<p>The end result is one data frame with all of the data from the
+folder.</p>
 <p>Before transforming the results data into WQX format, we will create
-a function that will help to make the “Activity ID” of WQX file. To maek
-the Activity ID, it needs location ID, date, activity type, equipment
-name, depth, time and equipment comment.</p>
+a function that will help to make the <code>Activity ID</code> column of
+WQX file. To make the Activity ID, it needs location ID, date, activity
+type, equipment name, depth, time and equipment comment. Simply run this
+function (line 142) with a mutate() statement to create the
+<code>Activity ID</code>.</p>
 <pre class="r"><code>make_activity_id &lt;- function(location_id, date, activity_type, equipment_name, depth = NULL, time = NULL, equipment_comment = NULL) {
   YYYYMMDD &lt;- gsub(&#39;/&#39;, &#39;&#39;, date)
   activity &lt;- ifelse(activity_type == &quot;Sample-Routine&quot;, &quot;SR&quot;, &quot;FM&quot;)
@@ -468,12 +545,26 @@ name, depth, time and equipment comment.</p>
   depth &lt;- ifelse(is.na(depth), &quot;&quot;, depth)
   paste(location_id, YYYYMMDD, hhmm,activity, equipment, depth, equipment_comment, sep = &quot;:&quot;)
 }</code></pre>
-<p>To transform the data into WQX format, we will first run the function
-clean_names() to make the column names easier to work with. Then we
-create columns based on WQX schema. We will then drop the first 48
-columns from the original report. Lastly, we will reorder the data.</p>
-<pre class="r"><code>clean_alpha_lab &lt;- raw_alpha_lab |&gt;
-  clean_names() |&gt;
+<p>To transform the data into WQX format, we will create columns based
+on WQX schema using the mutate() function from the tidyverse package. We
+will then drop the columns we do not need and reorder the data.</p>
+<p>One function that is used a numerous time is the ifelse() function.
+This function lets the user create a condition, and if this condition is
+met, the column will be a specified value. If it is not met, it is a
+different value.</p>
+<p>For example, in the code</p>
+<p>raw_alpha_lab |&gt; mutate(Characteristic Name” = ifelse(ANALYTE ==
+“E. Coli”, “Escherichia coli”, ANALYTE))</p>
+<p>It could be read as: using the dataset raw_alpha_lab, we create a new
+column named <code>Characteristic Name</code>. If the cell value from
+the <code>ANALYTE</code> column from raw_alpha_lab is E. Coli (this is
+the condition), the corresponding cell value in the
+<code>Characteristic Name</code> column will be Eschericia coli. If the
+condition is not met, fill the rest of the
+<code>Characteristic Name</code> column with values from the
+<code>ANALYTE</code> column.</p>
+<pre class="r"><code>clean_alpha_lab &lt;- raw_alpha_lab |&gt; 
+  # clean_names() |&gt;
   # Are we using calwatch as project ID?
   mutate(
     &quot;Project ID&quot; = &quot;CalWATCH&quot;,
@@ -481,9 +572,9 @@ columns from the original report. Lastly, we will reorder the data.</p>
     &quot;Monitoring Location ID&quot; = NA,
     &quot;Activity ID User Supplied (PARENTs)&quot; = NA,
     &quot;Activity Type&quot; = &quot;Sample-Routine&quot;,
-    &quot;Activity Media Name&quot; = matrix,
-    &quot;Activity Start Date&quot; = format(mdy_hms(sampdate), &quot;%m/%d/%Y&quot;),
-    &quot;Activity Start Time&quot; = format(mdy_hms(sampdate), &quot;%H:%M&quot;),
+    &quot;Activity Media Name&quot; = MATRIX,
+    &quot;Activity Start Date&quot; = format(mdy_hms(SAMPDATE), &quot;%m/%d/%Y&quot;),
+    &quot;Activity Start Time&quot; = format(mdy_hms(SAMPDATE), &quot;%H:%M&quot;),
     &quot;Activity Start Time Zone&quot; = &quot;PST&quot;,
     # not depth or height
     &quot;Activity Depth/Height Measure&quot; = NA,
@@ -492,24 +583,24 @@ columns from the original report. Lastly, we will reorder the data.</p>
     &quot;Sample Collection Method Context&quot; = &quot;CA_BVR&quot;,
     &quot;Sample Collection Equipment Name&quot; = &quot;Water Bottle&quot;,
     &quot;Sample Collection Equipment Comment&quot; = NA,
-    &quot;Characteristic Name&quot; = ifelse(analyte == &quot;E. Coli&quot;, &quot;Escherichia coli&quot;, analyte),
+    &quot;Characteristic Name&quot; = ifelse(ANALYTE == &quot;E. Coli&quot;, &quot;Escherichia coli&quot;, ANALYTE),
     &quot;Characteristic Name User Supplied&quot; = NA,
-    &quot;Method Speciation&quot; = ifelse(analyte == &quot;Nitrate as N&quot;, &quot;as N&quot;, NA_character_),
+    &quot;Method Speciation&quot; = ifelse(ANALYTE == &quot;Nitrate as N&quot;, &quot;as N&quot;, NA_character_),
     &quot;Result Detection Condition&quot; = case_when(
-      result == &quot;ND&quot; ~ &quot;Not Reported&quot;,
-      result == &quot;Absent&quot; ~ &quot;Not Present&quot;,
-      result == &quot;Present&quot; ~ &quot;Detected Not Quantified&quot;,
+      Result == &quot;ND&quot; ~ &quot;Not Reported&quot;,
+      Result == &quot;Absent&quot; ~ &quot;Not Present&quot;,
+      Result == &quot;Present&quot; ~ &quot;Detected Not Quantified&quot;,
       TRUE ~ NA_character_),
-    &quot;Result Value&quot; = ifelse(result == &quot;Absent&quot; | result == &quot;ND&quot; | result == &quot;Present&quot;, NA_character_, result),
-    &quot;Result Unit&quot; = ifelse(units == &quot;.&quot;, NA_character_, units),
+    &quot;Result Value&quot; = ifelse(Result == &quot;Absent&quot; | Result == &quot;ND&quot; | Result == &quot;Present&quot;, NA_character_, Result),
+    &quot;Result Unit&quot; = ifelse(UNITS == &quot;.&quot;, NA_character_, UNITS),
     &quot;Result Measure Qualifier&quot; = NA,
     &quot;Result Sample Fraction&quot; = &quot;Total&quot;,
     &quot;Result Status ID&quot; = &quot;Final&quot;,
     &quot;ResultTemperatureBasis&quot; = NA,
     &quot;Statistical Base Code&quot; = NA,
     &quot;ResultTimeBasis&quot; = NA,
-    &quot;Result Value Type&quot; = ifelse(is.na(result), NA_character_, &quot;Actual&quot;),
-    &quot;Result Analytical Method ID&quot; = ifelse(is.na(methodname), NA_character_, method_lookup[methodname]),
+    &quot;Result Value Type&quot; = ifelse(is.na(Result), NA_character_, &quot;Actual&quot;),
+    &quot;Result Analytical Method ID&quot; = ifelse(is.na(METHODNAME), NA_character_, method_lookup[METHODNAME]),
     &quot;Activity ID (CHILD-subset)&quot; = make_activity_id(
       location_id = `Monitoring Location ID`,
       date = `Activity Start Date`,
@@ -518,11 +609,11 @@ columns from the original report. Lastly, we will reorder the data.</p>
       equipment_name = `Sample Collection Equipment Name`,
       depth = `Activity Depth/Height Measure`
     ),
-    &quot;Result Analytical Method Context&quot; = method_context_lookup[methodname],
-    &quot;Analysis Start Date&quot; = format(mdy_hms(anadate), &quot;%m/%d/%Y&quot;),
-    &quot;Result Detection/Quantitation Limit Type&quot; = ifelse(dl == &quot;NA&quot;, NA_character_, &quot;Method Detection Level&quot;),
-    &quot;Result Detection/Quantitation Limit Measure&quot; = ifelse(dl == &quot;NA&quot;, NA_character_, dl),
-    &quot;Result Detection/Quantitation Limit Unit&quot; = ifelse(units == &quot;.&quot;, NA_character_, units),
+    &quot;Result Analytical Method Context&quot; = method_context_lookup[METHODNAME],
+    &quot;Analysis Start Date&quot; = format(mdy_hms(ANADATE), &quot;%m/%d/%Y&quot;),
+    &quot;Result Detection/Quantitation Limit Type&quot; = ifelse(DL == &quot;NA&quot;, NA_character_, &quot;Method Detection Level&quot;),
+    &quot;Result Detection/Quantitation Limit Measure&quot; = ifelse(DL == &quot;NA&quot;, NA_character_, DL),
+    &quot;Result Detection/Quantitation Limit Unit&quot; = ifelse(UNITS == &quot;.&quot;, NA_character_, UNITS),
     &quot;Result Comment&quot; = NA
     
   ) |&gt;
@@ -566,11 +657,17 @@ columns from the original report. Lastly, we will reorder the data.</p>
 ## $ `Result Detection/Quantitation Limit Measure` &lt;chr&gt; NA, NA, &quot;0.040&quot;, NA, NA,…
 ## $ `Result Detection/Quantitation Limit Unit`    &lt;chr&gt; NA, NA, &quot;mg/L&quot;, NA, NA, …
 ## $ `Result Comment`                              &lt;lgl&gt; NA, NA, NA, NA, NA, NA, …</code></pre>
+<p>One last step that we need to do before getting a WQX ready dataset
+is to make sure that both <code>Result Unit</code> and
+<code>Result Analytical Method Context</code> column is empty if the
+<code>Result Analytical Method ID</code> and <code>Result Unit</code>
+columns are respectively empty.</p>
 <pre class="r"><code>clean_alpha_lab &lt;- clean_alpha_lab |&gt; 
   mutate(&quot;Result Analytical Method Context&quot; = ifelse(is.na(clean_alpha_lab$`Result Analytical Method ID`), NA_character_, clean_alpha_lab$`Result Analytical Method Context`),
          &quot;Result Unit&quot; = ifelse(is.na(clean_alpha_lab$`Result Value`), NA_character_, clean_alpha_lab$`Result Unit`)) |&gt; 
   relocate(&quot;Result Analytical Method Context&quot;, .before = &quot;Analysis Start Date&quot;)</code></pre>
-<p>Lastly we export the data to a CSV file.</p>
+<p>Lastly we export the data to a CSV file in the data folder. Cells
+with NAs are saved as blank cells.</p>
 <pre class="r"><code>write_csv(clean_alpha_lab, &quot;data/alpha_lab_wqx.csv&quot;, na = &quot;&quot;)</code></pre>
 </div>
 </div>

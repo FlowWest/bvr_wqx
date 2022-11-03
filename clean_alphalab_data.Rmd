@@ -5,7 +5,7 @@ date: "2022-10-12"
 output: html_document
 ---
 # AlphaLab Data
-# Description of Data
+## Description of Data
 
 **Collection method:**
 
@@ -23,38 +23,54 @@ Storm Water Sampling (SW), Tap Water Sampling (CalWATCH).
 
 Storm Water Sampling YES. Tap Water Sampling NO.
 
+**Note**
+
+Before running this script, make sure your working directory is set to the big_valley_wqx project. Check your working directory by type in the command getwd() in the console. Type ?getwd() (or any function) in the console or google search the function to see detained documentation on the function.
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(readxl)
-library(ggplot2)
-library(janitor)
 library(lubridate)
 ```
 
 ## Data transformations
 
-Read in individual AlphaLab excel file using the function read_excel().
+First we need to load lookup table that contains project ID lookup (eg.location FC1's corresponding project ID is CS), unit lookup (eg. Temperature, water - deg C), method lookup, and method context lookup.
+
 ```{r}
 load("lookup_objects.rdata")
 ```
 
+Since the original files are in xls format, we could read in individual AlphaLab excel file using the function read_excel() from the readxl package.
 
 ```{r}
 raw_alpha_data <- read_excel('data-raw/alpha-lab/22G2998 FINAL EXCEL 09 Aug 22 1018.xls') |> glimpse()
 ```
 
-Alternatively, we could read in all of the files in the folder at once and bind them by row into one data frame. We do this by listing out all of the files in the folder using the function list.files(). We then apply the function read_excel() and bind all of the files into a dataframe using map_df().
+Alternatively, we could read in all of the files in the folder at once and bind them by row into one data frame. We do this by listing out all of the files in the folder using the function list.files(). 
 
 ```{r}
-raw_alpha_lab <-
-  list.files("data-raw/alpha-lab",
-             full.names = T) |> 
-  map_df(~read_excel(.))
+file_list <- list.files("data-raw/alpha-lab",
+             full.names = T)
 ```
 
-Before transforming the results data into WQX format, we will create a function that will help to make the "Activity ID" of WQX file. To maek the Activity ID, it needs location ID, date, activity type, equipment name, depth, time and equipment comment.
+We then create an empty data frame called raw_alpha_lab. We loop through the files in the folder, for each file, we use the above function read_excel() to read in the file. We then use the function rbind() to join each the data from each file to the empty data frame.
+
+```{r}
+raw_alpha_lab <- data.frame()
+
+for (file in file_list){
+  print(file)
+  raw_alpha_lab <- rbind(raw_alpha_lab, read_excel(file))
+}
+
+raw_alpha_lab |> glimpse()
+```
+The end result is one data frame with all of the data from the folder.
+
+Before transforming the results data into WQX format, we will create a function that will help to make the `Activity ID` column of WQX file. To make the Activity ID, it needs location ID, date, activity type, equipment name, depth, time and equipment comment. Simply run this function (line 142) with a mutate() statement to create the `Activity ID`.
 
 ```{r}
 make_activity_id <- function(location_id, date, activity_type, equipment_name, depth = NULL, time = NULL, equipment_comment = NULL) {
@@ -75,11 +91,20 @@ make_activity_id <- function(location_id, date, activity_type, equipment_name, d
 }
 ```
 
-To transform the data into WQX format, we will first run the function clean_names() to make the column names easier to work with. Then we create columns based on WQX schema. We will then drop the first 48 columns from the original report. Lastly, we will reorder the data.
+To transform the data into WQX format, we will create columns based on WQX schema using the mutate() function from the tidyverse package. We will then drop the columns we do not need and reorder the data.
+
+One function that is used a numerous time is the ifelse() function. This function lets the user create a condition, and if this condition is met, the column will be a specified value. If it is not met, it is a different value.
+
+For example, in the code 
+
+raw_alpha_lab |> 
+mutate(Characteristic Name" = ifelse(ANALYTE == "E. Coli", "Escherichia coli", ANALYTE))
+
+It could be read as: using the dataset raw_alpha_lab, we create a new column named `Characteristic Name`. If the cell value from the `ANALYTE` column from raw_alpha_lab is E. Coli (this is the condition), the corresponding cell value in the `Characteristic Name` column will be Eschericia coli. If the condition is not met, fill the rest of the `Characteristic Name` column with values from the `ANALYTE` column.
 
 ```{r}
-clean_alpha_lab <- raw_alpha_lab |>
-  clean_names() |>
+clean_alpha_lab <- raw_alpha_lab |> 
+  # clean_names() |>
   # Are we using calwatch as project ID?
   mutate(
     "Project ID" = "CalWATCH",
@@ -87,9 +112,9 @@ clean_alpha_lab <- raw_alpha_lab |>
     "Monitoring Location ID" = NA,
     "Activity ID User Supplied (PARENTs)" = NA,
     "Activity Type" = "Sample-Routine",
-    "Activity Media Name" = matrix,
-    "Activity Start Date" = format(mdy_hms(sampdate), "%m/%d/%Y"),
-    "Activity Start Time" = format(mdy_hms(sampdate), "%H:%M"),
+    "Activity Media Name" = MATRIX,
+    "Activity Start Date" = format(mdy_hms(SAMPDATE), "%m/%d/%Y"),
+    "Activity Start Time" = format(mdy_hms(SAMPDATE), "%H:%M"),
     "Activity Start Time Zone" = "PST",
     # not depth or height
     "Activity Depth/Height Measure" = NA,
@@ -98,24 +123,24 @@ clean_alpha_lab <- raw_alpha_lab |>
     "Sample Collection Method Context" = "CA_BVR",
     "Sample Collection Equipment Name" = "Water Bottle",
     "Sample Collection Equipment Comment" = NA,
-    "Characteristic Name" = ifelse(analyte == "E. Coli", "Escherichia coli", analyte),
+    "Characteristic Name" = ifelse(ANALYTE == "E. Coli", "Escherichia coli", ANALYTE),
     "Characteristic Name User Supplied" = NA,
-    "Method Speciation" = ifelse(analyte == "Nitrate as N", "as N", NA_character_),
+    "Method Speciation" = ifelse(ANALYTE == "Nitrate as N", "as N", NA_character_),
     "Result Detection Condition" = case_when(
-      result == "ND" ~ "Not Reported",
-      result == "Absent" ~ "Not Present",
-      result == "Present" ~ "Detected Not Quantified",
+      Result == "ND" ~ "Not Reported",
+      Result == "Absent" ~ "Not Present",
+      Result == "Present" ~ "Detected Not Quantified",
       TRUE ~ NA_character_),
-    "Result Value" = ifelse(result == "Absent" | result == "ND" | result == "Present", NA_character_, result),
-    "Result Unit" = ifelse(units == ".", NA_character_, units),
+    "Result Value" = ifelse(Result == "Absent" | Result == "ND" | Result == "Present", NA_character_, Result),
+    "Result Unit" = ifelse(UNITS == ".", NA_character_, UNITS),
     "Result Measure Qualifier" = NA,
     "Result Sample Fraction" = "Total",
     "Result Status ID" = "Final",
     "ResultTemperatureBasis" = NA,
     "Statistical Base Code" = NA,
     "ResultTimeBasis" = NA,
-    "Result Value Type" = ifelse(is.na(result), NA_character_, "Actual"),
-    "Result Analytical Method ID" = ifelse(is.na(methodname), NA_character_, method_lookup[methodname]),
+    "Result Value Type" = ifelse(is.na(Result), NA_character_, "Actual"),
+    "Result Analytical Method ID" = ifelse(is.na(METHODNAME), NA_character_, method_lookup[METHODNAME]),
     "Activity ID (CHILD-subset)" = make_activity_id(
       location_id = `Monitoring Location ID`,
       date = `Activity Start Date`,
@@ -124,11 +149,11 @@ clean_alpha_lab <- raw_alpha_lab |>
       equipment_name = `Sample Collection Equipment Name`,
       depth = `Activity Depth/Height Measure`
     ),
-    "Result Analytical Method Context" = method_context_lookup[methodname],
-    "Analysis Start Date" = format(mdy_hms(anadate), "%m/%d/%Y"),
-    "Result Detection/Quantitation Limit Type" = ifelse(dl == "NA", NA_character_, "Method Detection Level"),
-    "Result Detection/Quantitation Limit Measure" = ifelse(dl == "NA", NA_character_, dl),
-    "Result Detection/Quantitation Limit Unit" = ifelse(units == ".", NA_character_, units),
+    "Result Analytical Method Context" = method_context_lookup[METHODNAME],
+    "Analysis Start Date" = format(mdy_hms(ANADATE), "%m/%d/%Y"),
+    "Result Detection/Quantitation Limit Type" = ifelse(DL == "NA", NA_character_, "Method Detection Level"),
+    "Result Detection/Quantitation Limit Measure" = ifelse(DL == "NA", NA_character_, DL),
+    "Result Detection/Quantitation Limit Unit" = ifelse(UNITS == ".", NA_character_, UNITS),
     "Result Comment" = NA
     
   ) |>
@@ -137,6 +162,9 @@ clean_alpha_lab <- raw_alpha_lab |>
   glimpse()
 
 ```
+
+One last step that we need to do before getting a WQX ready dataset is to make sure that both `Result Unit` and `Result Analytical Method Context` column is empty if the `Result Analytical Method ID` and `Result Unit` columns are respectively empty. 
+
 ```{r}
 clean_alpha_lab <- clean_alpha_lab |> 
   mutate("Result Analytical Method Context" = ifelse(is.na(clean_alpha_lab$`Result Analytical Method ID`), NA_character_, clean_alpha_lab$`Result Analytical Method Context`),
@@ -144,7 +172,7 @@ clean_alpha_lab <- clean_alpha_lab |>
   relocate("Result Analytical Method Context", .before = "Analysis Start Date")
 ```
 
-Lastly we export the data to a CSV file.
+Lastly we export the data to a CSV file in the data folder. Cells with NAs are saved as blank cells.
 
 ```{r}
 write_csv(clean_alpha_lab, "data/alpha_lab_wqx.csv", na = "")
