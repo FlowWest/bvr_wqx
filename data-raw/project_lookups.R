@@ -89,6 +89,13 @@ method_lookup <- c(
   "ELISA" = "520060",
   "QPCR" = "1611"
 )
+
+method_context_lookup <- c(
+  "SM9223B" = "APHA",
+  "EPA 300.0" = "USEPA",
+  "ELISA" = "ABRAXIS LLC",
+  "QPCR" = "USEPA"
+)
 save_objects <- function() {
   save(project_id_lookup, unit_lookup,
        file="lookup_objects.rdata")

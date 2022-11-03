@@ -98,7 +98,7 @@ clean_alpha_lab <- raw_alpha_lab %>%
       depth = `Activity Depth/Height Measure`
     ),
     # Casnumber? Context APHA? 
-    # "Result Analytical Method ID" = ifelse(, NA_character_, casnumber),
+    "Result Analytical Method Context" = method_context_lookup[methodname],
     "Analysis Start Date" = format(mdy_hms(anadate), "%m/%d/%Y"),
     "Result Detection/Quantitation Limit Type" = ifelse(dl == "NA", NA_character_, "Method Detection Level"),
     "Result Detection/Quantitation Limit Measure" = ifelse(dl == "NA", NA_character_, dl),
@@ -110,7 +110,8 @@ clean_alpha_lab <- raw_alpha_lab %>%
   relocate("Activity ID (CHILD-subset)", .before = "Activity ID User Supplied (PARENTs)")
 
 clean_alpha_lab <- clean_alpha_lab %>% 
-  mutate("Result Analytical Method Context" = ifelse(is.na(clean_alpha_lab$`Result Analytical Method ID`), NA_character_,"APHA")) %>% 
+  mutate("Result Analytical Method Context" = ifelse(is.na(clean_alpha_lab$`Result Analytical Method ID`), NA_character_, clean_alpha_lab$`Result Analytical Method Context`),
+         "Result Unit" = ifelse(is.na(clean_alpha_lab$`Result Value`), NA_character_, clean_alpha_lab$`Result Unit`)) %>% 
   relocate("Result Analytical Method Context", .before = "Analysis Start Date")
 
 write_csv(clean_alpha_lab, "data/alpha_lab_wqx.csv", na = "")
