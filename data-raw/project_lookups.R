@@ -97,7 +97,7 @@ method_context_lookup <- c(
   "QPCR" = "USEPA"
 )
 save_objects <- function() {
-  save(project_id_lookup, unit_lookup,
+  save(project_id_lookup, unit_lookup, method_lookup, method_context_lookup,
        file="lookup_objects.rdata")
   
 }

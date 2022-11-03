@@ -3,7 +3,7 @@ library(readxl)
 library(ggplot2)
 library(janitor)
 library(lubridate)
-load("data-raw/lookup_objects.rdata")
+load("lookup_objects.rdata")
 
 
 # calwatch - wqx submittal required?

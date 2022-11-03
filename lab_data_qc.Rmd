@@ -1,0 +1,110 @@
+---
+title: "WQX Upload QC"
+author: "Inigo Peng"
+date: "2022-10-24"
+output: html_document
+---
+#WQX Data QC
+## Description of Data
+
+The data we are using to go through the QC process is the cleaned WQX dataset from Alpha Lab, Bend Genetics, and Hydro Lab.
+
+**Timeframe:** 2020
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(janitor)
+library(readxl)
+library(stringr)
+library(lubridate)
+library(readr)
+library(ggplot2)
+```
+
+## Access Lab Data
+
+We will first read in the wqx ready lab data. We will bind it into one data frame so we only have to perform the qc procedure once. For alpha lab data and hydro lab data, we will use the read_csv function. For the bend genetics data, we will use the read.csv function since we need to define the file encoding (bend genetics have special character that is encoded differently than other files). We will then bind the three data frames into one large data frame called combined_lab_data.
+
+```{r}
+alpha_lab_wqx <- read_csv("data/alpha_lab_wqx.csv", col_types = cols(.default = "c")) %>% glimpse
+
+bend_wqx <- read_csv("data/bend_wqx.csv", col_types = cols(.default = "c")) |> glimpse()
+
+hydrolab_wqx <- read_csv("data/hydrolab_wqx.csv", col_types = cols(.default = "c")) %>% glimpse
+```
+```{r}
+combined_lab_data <- bind_rows(alpha_lab_wqx, bend_wqx, hydrolab_wqx) 
+```
+##Data transformations
+
+Right now, the data type of all of the columns are "characters". We need to change the columns "Activity Depth/Height Measure", "Result Value", and "Result Detection/Quantitation Limit Measure" to numeric. However we cannot convert it directly because one of the value in "Result Value" is "present". That is not a value we want so we have to filter it out. 
+
+```{r}
+combined_lab_data <- combined_lab_data %>% 
+  mutate(`Activity Depth/Height Measure` = as.numeric(`Activity Depth/Height Measure`),
+         `Result Value` = as.numeric(`Result Value`),
+         `Result Detection/Quantitation Limit Measure` = as.numeric(`Result Detection/Quantitation Limit Measure`)) %>% glimpse
+
+```
+
+## Explore Numeric Variables
+
+Now we explore these numeric values. 
+
+```{r}
+combined_lab_data %>% select_if(is.numeric) %>% colnames()
+```
+### Variable: `Activity Depth/Height Measure`, `Result Value`, `Result Detection/Quantitation Limit Measure`
+
+The summary function produces summaries of the results such as min, max. Values that are not in the normal range could be spotted.
+
+```{r}
+summary(combined_lab_data$`Activity Depth/Height Measure`)
+summary(combined_lab_data$`Result Value`)
+summary(combined_lab_data$`Result Detection/Quantitation Limit Measure`)
+
+```
+
+**NA and Unknown Values**
+
+* `r round(sum(is.na(combined_lab_data$`Activity Depth/Height Measure`))/nrow(combined_lab_data), 3) * 100` % of values in the `Activity Depth/Height Measure` column are NA.
+
+* `r round(sum(is.na(combined_lab_data$`Result Value`))/nrow(combined_lab_data), 3) * 100` % of values in the `Result Value` column are NA.
+
+* `r round(sum(is.na(combined_lab_data$`Result Detection/Quantitation Limit Measure`))/nrow(combined_lab_data), 3) * 100` % of values in the `Result Detection/Quantitation Limit Measure` column are NA.
+
+### Variable: `Result Value`
+
+**Plotting result value per water quality variable 
+
+```{r}
+combined_lab_data %>% 
+  ggplot(aes(x = `Result Value`,  y = `Characteristic Name`)) +
+  geom_point(color = "blue") +
+  labs(x = "Result Value",
+       y = "Characteristic Name") +
+  theme_minimal()
+```
+```{r}
+combined_lab_data %>% 
+  filter(`Characteristic Name` == "Turbidity") %>% 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(x = "Result Value",
+       y = "Characteristic Name") +
+  theme_minimal()
+```
+```{r}
+combined_lab_data %>% 
+  filter(`Characteristic Name` == "Microcystin/Nod." & `Result Value` < 700) %>% 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(x = "Result Value",
+       y = "Characteristic Name") +
+  theme_minimal()
+
+```
+
+

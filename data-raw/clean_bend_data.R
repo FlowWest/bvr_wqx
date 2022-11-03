@@ -4,7 +4,7 @@ library(readxl)
 library(stringr)
 library(lubridate)
 library(readr)
-load("data-raw/lookup_objects.rdata")
+load("lookup_objects.rdata")
 
 # ------------------------------------------------------------------------------
 # Parse data based on sample_id
@@ -75,9 +75,7 @@ bend_wqx <- bend_full_df |>
          "Result Value Type" = "Actual",
         # Seems like we are only using ELSA analysis not QPCR?
          "Result Analytical Method ID" = method_lookup[method],
-         "Result Analytical Method Context" = case_when(method == "ELISA" ~ "ABRAXIS LLC",
-                                                        method == "QPCR" ~ "USEPA",
-                                                        TRUE ~ NA_character_),
+         "Result Analytical Method Context" = method_context_lookup[method],
          "Analysis Start Date" = format(mdy_hm(date_received), "%m/%d/%Y"),
          "Result Detection/Quantitation Limit Type" = "Practical Quantitation Limit",
          "Result Detection/Quantitation Limit Measure" = quantitation_limit,

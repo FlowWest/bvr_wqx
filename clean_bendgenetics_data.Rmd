@@ -34,14 +34,18 @@ library(readr)
 ```
 
 ## Data transformations
+First we need to load lookup table that contains project ID lookup (eg.location FC1's corresponding project ID is CS) and unit lookup (eg. Temperature, water - deg C)
+```{r}
+load("lookup_objects.rdata")
+```
 
 Bend Genetic lab report results come in two data frames (Analytical Report For Samples and Sample Results). We need to parse them from the excel file. We will first read in the excel file, skipping the first 5 lines of the header and delete an empty column (x8). We have also changed the column type for Sample ID into numeric - any row without numbers will now be NA. This is import for parsing in the next step.
 
 ```{r}
-bend_raw <- read_excel("data-raw/bend/BendHAB.xlsx", skip = 5) %>% 
-  clean_names() %>% 
-  mutate(sample_id = as.numeric(sample_id)) %>% 
-  select(-x8) %>% 
+bend_raw <- read_excel("data-raw/bend/BendHAB.xlsx", skip = 5)  |>  
+  clean_names() |> 
+  mutate(sample_id = as.numeric(sample_id)) |> 
+  select(-x8) |> 
   glimpse()
 ```
 
@@ -58,14 +62,13 @@ To parse for the Sample Results data frame, we know that it starts after the sec
 sample_results <- bend_raw[(which(is.na(bend_raw$sample_id))[2]) : (which(is.na(bend_raw$sample_id))[3] - 1), ] %>%
   row_to_names(row_number = 1) %>%
   clean_names() %>% 
-  rename(sample_id = na) %>% glimpse
+  rename(sample_id = na) %>% glimpse()
 ```
 
 We then create a the full data frame by joining Analytical Report for Samples and Sample Results.
 ```{r}
 # Seems like wqx only takes units in ug/L and not copies/mL. Method ELISA have resutls in ug/L.
-bend_full_df <-   left_join(analytical_report_for_samples, sample_results) %>% 
-  filter(method == "ELISA") %>% glimpse()
+bend_full_df <-   left_join(analytical_report_for_samples, sample_results) %>%  glimpse()
 ```
 
 To prepare data transformation to WQX format, we create the make_activity_id() function.
@@ -89,7 +92,7 @@ make_activity_id <- function(location_id, date, activity_type, equipment_name, d
 
 Lastly we map the full data frame to WQX schema by creating rows based on the values of the bend genetics data frame.
 ```{r}
-bend_wqx <- bend_full_df %>% 
+bend_wqx <- bend_full_df |> 
   mutate("Project ID" = "HAB",
          # Not all locations are recorded in master monitoring plan:
         # Benthic LUC01, OA04, LA03
@@ -110,7 +113,7 @@ bend_wqx <- bend_full_df %>%
          "Sample Collection Equipment Name" = "Water Bottle",
          "Sample Collection Equipment Comment" = NA,
         #Should we use microcystin/nod. or just microcystin
-         "Characteristic Name" = target,
+         "Characteristic Name" = ifelse(target == "Microcystin/Nod.", "Microcystin/nodularin genes mcyE/ndaF", target),
          "Characteristic Name User Supplied" = NA,
          "Method Speciation" = NA,
          "Result Detection Condition" = ifelse(result == "ND", "Not Detected", NA),
@@ -125,8 +128,8 @@ bend_wqx <- bend_full_df %>%
          "ResultTimeBasis" = NA,
          "Result Value Type" = "Actual",
         # Seems like we are only using ELSA analysis not QPCR?
-         "Result Analytical Method ID" = "520011",
-         "Result Analytical Method Context" = "ABRAXIS LLC",
+         "Result Analytical Method ID" = method_lookup[method],
+         "Result Analytical Method Context" = method_lookup[method],
          "Analysis Start Date" = format(mdy_hm(date_received), "%m/%d/%Y"),
          "Result Detection/Quantitation Limit Type" = "Practical Quantitation Limit",
          "Result Detection/Quantitation Limit Measure" = quantitation_limit,
@@ -138,16 +141,20 @@ bend_wqx <- bend_full_df %>%
                                                         activity_type = `Activity Type`,
                                                         equipment_name = `Sample Collection Equipment Name`,
                                                         depth = `Activity Depth/Height Measure`)
-  ) %>% 
-  relocate("Activity ID (CHILD-subset)", .before = "Activity ID User Supplied (PARENTs)") %>% 
-  select(-c(0:13)) %>% glimpse
+  ) |> 
+  relocate("Activity ID (CHILD-subset)", .before = "Activity ID User Supplied (PARENTs)") |> 
+  select(-c(0:13))%>% glimpse()
+```
+```{r}
+bend_wqx <- bend_wqx |> 
+  mutate("Result Unit" = ifelse(bend_wqx$`Result Unit` == "µg/L", "ug/L", bend_wqx$`Result Unit`),
+         "Result Detection/Quantitation Limit Unit" = ifelse(bend_wqx$`Result Detection/Quantitation Limit Unit` == "µg/L", "ug/L", bend_wqx$`Result Detection/Quantitation Limit Unit`))
 ```
 
 And we export the data frame to a csv file using the function write.csv(). Note we need to change the file encoding to make sure some of the special characters are exported correctly.
 
 ```{r}
-write.csv(bend_wqx, "data/bend_wqx.csv", na = "", fileEncoding="Windows-1252", row.names = FALSE)
-
+write_csv(bend_wqx, "data/bend_wqx.csv", na = "")
 ```
 
 
