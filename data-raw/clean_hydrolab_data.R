@@ -15,7 +15,7 @@ raw_file_list <-
              full.names = T) 
 
 
-# %>% 
+# |> 
 #   map_df(~read_csv(.,skip = 5, col_types = "c"
 #                    ))
 
@@ -24,7 +24,7 @@ raw_file_list <-
 
 # raw_header <- 
 #   list.files("data-raw/hydro-lab",
-#              full.names = T) %>% 
+#              full.names = T) |> 
 #   map_df(~read_csv(.,col_names = FALSE, n_max = 1
 #   ))
 # 
@@ -45,7 +45,7 @@ for (file in raw_file_list){
     str_extract_all(raw_header,
                     regex_pattern))
   print(location_id)
-  raw_data <- read_csv(file, skip = 5, col_types = "c") %>% 
+  raw_data <- read_csv(file, skip = 5, col_types = "c") |> 
     mutate("location_id" = location_id)
   datalist[[file]] <- raw_data
 }
@@ -64,11 +64,11 @@ make_activity_id <- function(location_id, date, activity_type, equipment_name, d
   paste(location_id, YYYYMMDD, hhmm,activity, equipment, depth, equipment_comment, sep = ":")
 }
 # ------------------------------------------------------------------------------
-hydrolab_formatted_for_wqx <- all_raw_data %>% 
-  select(-c(3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29)) %>% 
-  clean_names() %>%
-  filter(str_count(date, "\\d+") > 2) %>% 
-  select(-c("ibv_svr4", "chl", "pcy")) %>%
+hydrolab_formatted_for_wqx <- all_raw_data |> 
+  select(-c(3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29)) |> 
+  clean_names() |>
+  filter(str_count(date, "\\d+") > 2) |> 
+  select(-c("ibv_svr4", "chl", "pcy")) |>
   rename("Temperature, water" = "temp",
          "Specific conductance" = "sp_cond",
          "Resistivity" = "res",
@@ -78,8 +78,8 @@ hydrolab_formatted_for_wqx <- all_raw_data %>%
          "Dissolved oxygen (DO)" = "do",
          "pH" = "p_h",
          "Turbidity" = "turb",
-         "Monitoring Location ID" = location_id) %>%
-    pivot_longer(!c(date, time, depth10, `Monitoring Location ID`), names_to = "Characteristic Name", "values_to" = "Result Value") %>% 
+         "Monitoring Location ID" = location_id) |>
+    pivot_longer(!c(date, time, depth10, `Monitoring Location ID`), names_to = "Characteristic Name", "values_to" = "Result Value") |> 
   mutate("Project ID" = project_id_lookup[`Monitoring Location ID`],
          # "Monitoring Location ID" = location_id,
          # "Activity ID (CHILD-subset)" = make_activity_id(location_id, date, activity_type, equipment_name, time = NULL), 
@@ -91,7 +91,7 @@ hydrolab_formatted_for_wqx <- all_raw_data %>%
          "Activity Start Time Zone" = "PST",
          "Activity Depth/Height Measure" = as.numeric(depth10),
          "Activity Depth/Height Unit" = "m",
-         "Sample Collection Method ID" = "BVR Tribal SWQAPP",
+         "Sample Collection Method ID" = "BVR SWQAPP",
          "Sample Collection Method Context" = "CA_BVR",
          "Sample Collection Equipment Name" = "Probe/Sensor",
          "Sample Collection Equipment Comment" = "Hydrolab Surveyor DS5 Multiprobe",
@@ -124,8 +124,8 @@ hydrolab_formatted_for_wqx <- all_raw_data %>%
          "Result Detection/Quantitation Limit Unit" = "",
          "Result Comment" = ""
          
-         ) %>% 
-  select(-c(date, depth10, time)) %>% 
+         ) |> 
+  select(-c(date, depth10, time)) |> 
   relocate("Project ID",
            "Monitoring Location ID",
            "Activity ID (CHILD-subset)",
@@ -149,7 +149,7 @@ hydrolab_formatted_for_wqx <- all_raw_data %>%
            "Result Unit",
            "Result Measure Qualifier",
            "Result Sample Fraction",
-           "Result Status ID",
+           "Result Status ID",  
            "ResultTemperatureBasis",
            "Statistical Base Code",
            "ResultTimeBasis",
@@ -160,7 +160,7 @@ hydrolab_formatted_for_wqx <- all_raw_data %>%
            "Result Detection/Quantitation Limit Measure",
            "Result Detection/Quantitation Limit Unit",
            "Result Comment"
-           ) %>% glimpse
+           )
 
 write_csv(hydrolab_formatted_for_wqx, "data/hydrolab_wqx.csv")
 

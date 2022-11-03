@@ -83,6 +83,12 @@ unit_lookup <- c(
   "pH" = "None", 
   "Turbidity" = "NTU")
 
+method_lookup <- c(
+  "SM9223B" = "9223-B",
+  "EPA 300.0" = "300.0",
+  "ELISA" = "520060",
+  "QPCR" = "1611"
+)
 save_objects <- function() {
   save(project_id_lookup, unit_lookup,
        file="lookup_objects.rdata")
