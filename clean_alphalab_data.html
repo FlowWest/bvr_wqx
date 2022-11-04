@@ -381,12 +381,12 @@ pre code {
 <p><strong>Monitoring (Project ID)</strong></p>
 <p>Storm Water Sampling (SW), Tap Water Sampling (CalWATCH).</p>
 <p><strong>WQX submittal required?</strong></p>
-<p>Storm Water Sampling YES. Tap Water Sampling NO.</p>
+<p>Storm Water Sampling: YES. Tap Water Sampling: NO.</p>
 <p><strong>Note</strong></p>
 <p>Before running this script, make sure your working directory is set
 to the big_valley_wqx project. Check your working directory by type in
 the command getwd() in the console. Type ?getwd() (or any function) in
-the console or google search the function to see detained documentation
+the console or google search the function to see detailed documentation
 on the function.</p>
 </div>
 <div id="data-transformations" class="section level2">
@@ -573,10 +573,12 @@ condition is not met, fill the rest of the
     &quot;Activity ID User Supplied (PARENTs)&quot; = NA,
     &quot;Activity Type&quot; = &quot;Sample-Routine&quot;,
     &quot;Activity Media Name&quot; = MATRIX,
+    # use the lubridate package function mdy_hm()to format date in m/d/y 
     &quot;Activity Start Date&quot; = format(mdy_hms(SAMPDATE), &quot;%m/%d/%Y&quot;),
+    # use the lubridate package function mdy_hm()to format date in HH:MM
     &quot;Activity Start Time&quot; = format(mdy_hms(SAMPDATE), &quot;%H:%M&quot;),
     &quot;Activity Start Time Zone&quot; = &quot;PST&quot;,
-    # not depth or height
+    # no depth or height
     &quot;Activity Depth/Height Measure&quot; = NA,
     &quot;Activity Depth/Height Unit&quot; = NA,
     &quot;Sample Collection Method ID&quot; = &quot;BVR SWQAPP&quot;,
@@ -586,6 +588,7 @@ condition is not met, fill the rest of the
     &quot;Characteristic Name&quot; = ifelse(ANALYTE == &quot;E. Coli&quot;, &quot;Escherichia coli&quot;, ANALYTE),
     &quot;Characteristic Name User Supplied&quot; = NA,
     &quot;Method Speciation&quot; = ifelse(ANALYTE == &quot;Nitrate as N&quot;, &quot;as N&quot;, NA_character_),
+    # use case_when when there are multiple conditions
     &quot;Result Detection Condition&quot; = case_when(
       Result == &quot;ND&quot; ~ &quot;Not Reported&quot;,
       Result == &quot;Absent&quot; ~ &quot;Not Present&quot;,

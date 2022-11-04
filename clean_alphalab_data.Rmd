@@ -21,11 +21,11 @@ Storm Water Sampling (SW), Tap Water Sampling (CalWATCH).
 
 **WQX submittal required?**
 
-Storm Water Sampling YES. Tap Water Sampling NO.
+Storm Water Sampling: YES. Tap Water Sampling: NO.
 
 **Note**
 
-Before running this script, make sure your working directory is set to the big_valley_wqx project. Check your working directory by type in the command getwd() in the console. Type ?getwd() (or any function) in the console or google search the function to see detained documentation on the function.
+Before running this script, make sure your working directory is set to the big_valley_wqx project. Check your working directory by type in the command getwd() in the console. Type ?getwd() (or any function) in the console or google search the function to see detailed documentation on the function.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -113,10 +113,12 @@ clean_alpha_lab <- raw_alpha_lab |>
     "Activity ID User Supplied (PARENTs)" = NA,
     "Activity Type" = "Sample-Routine",
     "Activity Media Name" = MATRIX,
+    # use the lubridate package function mdy_hm()to format date in m/d/y 
     "Activity Start Date" = format(mdy_hms(SAMPDATE), "%m/%d/%Y"),
+    # use the lubridate package function mdy_hm()to format date in HH:MM
     "Activity Start Time" = format(mdy_hms(SAMPDATE), "%H:%M"),
     "Activity Start Time Zone" = "PST",
-    # not depth or height
+    # no depth or height
     "Activity Depth/Height Measure" = NA,
     "Activity Depth/Height Unit" = NA,
     "Sample Collection Method ID" = "BVR SWQAPP",
@@ -126,6 +128,7 @@ clean_alpha_lab <- raw_alpha_lab |>
     "Characteristic Name" = ifelse(ANALYTE == "E. Coli", "Escherichia coli", ANALYTE),
     "Characteristic Name User Supplied" = NA,
     "Method Speciation" = ifelse(ANALYTE == "Nitrate as N", "as N", NA_character_),
+    # use case_when when there are multiple conditions
     "Result Detection Condition" = case_when(
       Result == "ND" ~ "Not Reported",
       Result == "Absent" ~ "Not Present",

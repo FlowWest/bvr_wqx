@@ -372,9 +372,8 @@ pre code {
 
 <div id="hydrolab-data" class="section level1">
 <h1>HydroLab Data</h1>
-</div>
-<div id="description-of-data" class="section level1">
-<h1>Description of Data</h1>
+<div id="description-of-data" class="section level2">
+<h2>Description of Data</h2>
 <p><strong>Collection method:</strong></p>
 <p>Hydrolab DS5 Multiprobe</p>
 <p><strong>Raw File format:</strong></p>
@@ -385,16 +384,18 @@ Marina Sampling (MS), Big Valley shoreline sites(BVSHORE), Creek/Hitch
 Sampling (CS), Storm Water Sampling (SW).</p>
 <p><strong>WQX submittal required?</strong></p>
 <p>Yes</p>
+</div>
 <div id="data-transformations" class="section level2">
 <h2>Data transformations</h2>
 <p>First we need to load lookup table that contains project ID lookup
 (eg.location FC1’s corresponding project ID is CS) and unit lookup (eg.
-Temperature, water - deg C)</p>
+Temperature, water - deg C), method lookup, and method context
+lookup.</p>
 <pre class="r"><code>load(&quot;data-raw/lookup_objects.rdata&quot;)</code></pre>
 <p>Read in individual Hydro-lab csv using the function read_csv(); we
 make sure the read_csv() function is reading each column type as
 character instead of inferring the column type.</p>
-<pre class="r"><code>raw_full_data &lt;- read_csv(&#39;data-raw/hydro-lab/LPTNT.csv&#39;, col_types = &quot;c&quot;) %&gt;% glimpse</code></pre>
+<pre class="r"><code>raw_full_data &lt;- read_csv(&#39;data-raw/hydro-lab/LPTNT.csv&#39;, col_types = &quot;c&quot;) |&gt; glimpse()</code></pre>
 <pre><code>## Rows: 7
 ## Columns: 1
 ## $ `Log File Name : LPTNT` &lt;chr&gt; &quot;Setup Date (MMDDYY) : 022122&quot;, &quot;Setup Time (H…</code></pre>
@@ -421,7 +422,7 @@ location_id &lt;- unlist(
 print(location_id)</code></pre>
 <pre><code>## [1] &quot;LPTNT&quot;</code></pre>
 <p>The results data starts after the first five lines.</p>
-<pre class="r"><code>raw_results_data &lt;- read_csv(&#39;data-raw/hydro-lab/LPTNT.csv&#39;, skip = 5, col_types = &quot;c&quot;) %&gt;% glimpse</code></pre>
+<pre class="r"><code>raw_results_data &lt;- read_csv(&#39;data-raw/hydro-lab/LPTNT.csv&#39;, skip = 5, col_types = &quot;c&quot;) |&gt; glimpse()</code></pre>
 <pre><code>## New names:
 ## • `` -&gt; `...3`
 ## • `` -&gt; `...5`
@@ -488,7 +489,7 @@ for (file in raw_file_list){
     str_extract_all(raw_location,
                     regex_pattern))
   print(location_id)
-  raw_results_data &lt;- read_csv(file, skip = 5, col_types = &quot;c&quot;) %&gt;% 
+  raw_results_data &lt;- read_csv(file, skip = 5, col_types = &quot;c&quot;) |&gt; 
     mutate(&quot;location_id&quot; = location_id)
   datalist[[file]] &lt;- raw_results_data
 }</code></pre>
@@ -538,7 +539,7 @@ for (file in raw_file_list){
 ## • `` -&gt; `...27`
 ## • `` -&gt; `...29`</code></pre>
 <pre class="r"><code># Bind each dataframe together by rows
-all_raw_data &lt;- do.call(rbind, datalist) %&gt;% glimpse()</code></pre>
+all_raw_data &lt;- do.call(rbind, datalist) |&gt; glimpse()</code></pre>
 <pre><code>## Rows: 6
 ## Columns: 30
 ## $ Date        &lt;chr&gt; &quot;MMDDYY&quot;, &quot;01/26/22&quot;, &quot;Recovery finished at 012622 154112&quot;…
@@ -590,34 +591,34 @@ name, depth, time and equipment comment.</p>
 this in three steps. The first step is to remove the empty columns based
 on their index in the dataset using the select() function. We will use
 the function clean_names() to make the column names easier to work
-with.Then (%&gt;%) we will remove the columns that we do not need
+with.Then (|&gt;) we will remove the columns that we do not need
 (“ibv_svr4”, “chl”, “pcy”) based on the column name. We will also filter
 the rows of the dataset based on the pattern that there will be at least
 3 groups of digits in the date column (eg. 01/26/2022 contains three
 group of digits “01”, “26”, and “2022”). This will filter out the rows
 that do not contain results value.Lastly, we will rename the water
 quality variables into WQX appropriate water quality variables.</p>
-<pre class="r"><code>formatted_data &lt;- all_raw_data %&gt;% 
-  select(-c(3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29)) %&gt;% 
-  clean_names() %&gt;%
-  select(-c(&quot;ibv_svr4&quot;, &quot;chl&quot;, &quot;pcy&quot;)) %&gt;%
-  filter(str_count(date, &quot;\\d+&quot;) &gt; 2) %&gt;% 
-  rename(&quot;Temperature, water&quot; = &quot;temp&quot;,
-         &quot;Specific conductance&quot; = &quot;sp_cond&quot;,
-         &quot;Resistivity&quot; = &quot;res&quot;,
-         &quot;Salinity&quot; = &quot;sal&quot;,
-         &quot;Total dissolved solids&quot; = &quot;tds&quot;,
-         &quot;Dissolved oxygen saturation&quot; = &quot;do_percent&quot;,
-         &quot;Dissolved oxygen (DO)&quot; = &quot;do&quot;,
-         &quot;pH&quot; = &quot;p_h&quot;,
-         &quot;Turbidity&quot; = &quot;turb&quot;,
-         &quot;Monitoring Location ID&quot; = location_id) %&gt;% glimpse()</code></pre>
+<pre class="r"><code>formatted_data &lt;- all_raw_data |&gt; 
+  select(-c(3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29)) |&gt; 
+  # clean_names() |&gt;
+  select(-c(&quot;IBVSvr4&quot;, &quot;CHL&quot;, &quot;PCY&quot;)) |&gt;
+  filter(str_count(Date, &quot;\\d+&quot;) &gt; 2) |&gt; 
+  rename(&quot;Temperature, water&quot; = &quot;Temp&quot;,
+         &quot;Specific conductance&quot; = &quot;SpCond&quot;,
+         &quot;Resistivity&quot; = &quot;Res&quot;,
+         &quot;Salinity&quot; = &quot;Sal&quot;,
+         &quot;Total dissolved solids&quot; = &quot;TDS&quot;,
+         &quot;Dissolved oxygen saturation&quot; = &quot;DO%&quot;,
+         &quot;Dissolved oxygen (DO)&quot; = &quot;DO&quot;,
+         &quot;pH&quot; = &quot;pH&quot;,
+         &quot;Turbidity&quot; = &quot;Turb&quot;,
+         &quot;Monitoring Location ID&quot; = location_id) |&gt; glimpse()</code></pre>
 <pre><code>## Rows: 2
 ## Columns: 13
-## $ date                          &lt;chr&gt; &quot;01/26/22&quot;, &quot;02/21/22&quot;
-## $ time                          &lt;chr&gt; &quot;11:13:37&quot;, &quot;14:58:35&quot;
+## $ Date                          &lt;chr&gt; &quot;01/26/22&quot;, &quot;02/21/22&quot;
+## $ Time                          &lt;chr&gt; &quot;11:13:37&quot;, &quot;14:58:35&quot;
 ## $ `Temperature, water`          &lt;chr&gt; &quot;5.95&quot;, &quot;10.75&quot;
-## $ depth10                       &lt;chr&gt; &quot;.195&quot;, &quot;.489&quot;
+## $ Depth10                       &lt;chr&gt; &quot;.195&quot;, &quot;.489&quot;
 ## $ `Specific conductance`        &lt;chr&gt; &quot;.3164&quot;, &quot;.354&quot;
 ## $ Resistivity                   &lt;chr&gt; &quot;3.16&quot;, &quot;2.825&quot;
 ## $ Salinity                      &lt;chr&gt; &quot;.15&quot;, &quot;.17&quot;
@@ -631,13 +632,13 @@ quality variables into WQX appropriate water quality variables.</p>
 form to long form. We will call the new column containing the names
 “Characteristic Name” and the column containing the values “Result
 Value”.</p>
-<pre class="r"><code>pivotted_data &lt;- formatted_data %&gt;% 
-  pivot_longer(!c(date, time, depth10, `Monitoring Location ID`), names_to = &quot;Characteristic Name&quot;, &quot;values_to&quot; = &quot;Result Value&quot;) %&gt;% glimpse()</code></pre>
+<pre class="r"><code>pivotted_data &lt;- formatted_data |&gt; 
+  pivot_longer(!c(Date, Time, Depth10, `Monitoring Location ID`), names_to = &quot;Characteristic Name&quot;, &quot;values_to&quot; = &quot;Result Value&quot;) |&gt; glimpse()</code></pre>
 <pre><code>## Rows: 18
 ## Columns: 6
-## $ date                     &lt;chr&gt; &quot;01/26/22&quot;, &quot;01/26/22&quot;, &quot;01/26/22&quot;, &quot;01/26/22…
-## $ time                     &lt;chr&gt; &quot;11:13:37&quot;, &quot;11:13:37&quot;, &quot;11:13:37&quot;, &quot;11:13:37…
-## $ depth10                  &lt;chr&gt; &quot;.195&quot;, &quot;.195&quot;, &quot;.195&quot;, &quot;.195&quot;, &quot;.195&quot;, &quot;.195…
+## $ Date                     &lt;chr&gt; &quot;01/26/22&quot;, &quot;01/26/22&quot;, &quot;01/26/22&quot;, &quot;01/26/22…
+## $ Time                     &lt;chr&gt; &quot;11:13:37&quot;, &quot;11:13:37&quot;, &quot;11:13:37&quot;, &quot;11:13:37…
+## $ Depth10                  &lt;chr&gt; &quot;.195&quot;, &quot;.195&quot;, &quot;.195&quot;, &quot;.195&quot;, &quot;.195&quot;, &quot;.195…
 ## $ `Monitoring Location ID` &lt;chr&gt; &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC1&quot;, &quot;FC…
 ## $ `Characteristic Name`    &lt;chr&gt; &quot;Temperature, water&quot;, &quot;Specific conductance&quot;,…
 ## $ `Result Value`           &lt;chr&gt; &quot;5.95&quot;, &quot;.3164&quot;, &quot;3.16&quot;, &quot;.15&quot;, &quot;.2025&quot;, &quot;80.…</code></pre>
@@ -645,15 +646,15 @@ Value”.</p>
 This involves creating the correct columns of the BVR WQX schema,
 removing the columns we do not use, and order the columns in the same
 order as the schema.</p>
-<pre class="r"><code>hydrolab_formatted_for_wqx &lt;- pivotted_data %&gt;% 
+<pre class="r"><code>hydrolab_formatted_for_wqx &lt;- pivotted_data |&gt; 
   mutate(&quot;Project ID&quot; = project_id_lookup[`Monitoring Location ID`],
          &quot;Activity ID User Supplied(PARENTs)&quot; = &quot;&quot;,
          &quot;Activity Type&quot; = &quot;Field Msr/Obs&quot;,
          &quot;Activity Media Name&quot; = &quot;Water&quot;,
-         &quot;Activity Start Date&quot; = format(mdy(date), &quot;%m/%d/%Y&quot;),
-         &quot;Activity Start Time&quot; = format(parse_date_time(time, c(&#39;HMS&#39;, &#39;HM&#39;)), &quot;%H:%M&quot;),
+         &quot;Activity Start Date&quot; = format(mdy(Date), &quot;%m/%d/%Y&quot;),
+         &quot;Activity Start Time&quot; = format(parse_date_time(Time, c(&#39;HMS&#39;, &#39;HM&#39;)), &quot;%H:%M&quot;),
          &quot;Activity Start Time Zone&quot; = &quot;PST&quot;,
-         &quot;Activity Depth/Height Measure&quot; = as.numeric(depth10),
+         &quot;Activity Depth/Height Measure&quot; = as.numeric(Depth10),
          &quot;Activity Depth/Height Unit&quot; = &quot;m&quot;,
          &quot;Sample Collection Method ID&quot; = &quot;BVR Tribal SWQAPP&quot;,
          &quot;Sample Collection Method Context&quot; = &quot;CA_BVR&quot;,
@@ -688,8 +689,8 @@ order as the schema.</p>
          &quot;Result Detection/Quantitation Limit Unit&quot; = &quot;&quot;,
          &quot;Result Comment&quot; = &quot;&quot;
          
-         ) %&gt;% 
-  select(-c(date, depth10, time)) %&gt;% 
+         ) |&gt; 
+  select(-c(Date, Depth10, Time)) |&gt; 
   relocate(&quot;Project ID&quot;,
            &quot;Monitoring Location ID&quot;,
            &quot;Activity ID (CHILD-subset)&quot;,
@@ -724,7 +725,7 @@ order as the schema.</p>
            &quot;Result Detection/Quantitation Limit Measure&quot;,
            &quot;Result Detection/Quantitation Limit Unit&quot;,
            &quot;Result Comment&quot;
-           ) %&gt;% glimpse()</code></pre>
+           ) |&gt; glimpse()</code></pre>
 <pre><code>## Rows: 18
 ## Columns: 35
 ## $ `Project ID`                                  &lt;chr&gt; &quot;CS&quot;, &quot;CS&quot;, &quot;CS&quot;, &quot;CS&quot;, …

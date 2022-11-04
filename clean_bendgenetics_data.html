@@ -372,9 +372,8 @@ pre code {
 
 <div id="bend-genetics-data" class="section level1">
 <h1>Bend Genetics Data</h1>
-</div>
-<div id="description-of-data" class="section level1">
-<h1>Description of Data</h1>
+<div id="description-of-data" class="section level2">
+<h2>Description of Data</h2>
 <p><strong>Collection method:</strong></p>
 <p>Hydrolab DS5 Multiprobe, Sampling Bottles</p>
 <p><strong>Raw File format:</strong></p>
@@ -383,19 +382,27 @@ pre code {
 <p>Clear Lake Harmful Algal Bloom (HAB), Tap Water Sampling
 (CalWATCH).</p>
 <p><strong>WQX submittal required?</strong></p>
-<p>Clear Lake Harmful Algal Bloom YES. Tap Water Sampling NO.</p>
+<p>Clear Lake Harmful Algal Bloom: YES. Tap Water Sampling: NO.</p>
+<p><strong>Note</strong></p>
+<p>Before running this script, make sure your working directory is set
+to the big_valley_wqx project. Check your working directory by type in
+the command getwd() in the console. Type ?getwd() (or any function) in
+the console or google search the function to see detailed documentation
+on the function.</p>
+</div>
 <div id="data-transformations" class="section level2">
 <h2>Data transformations</h2>
 <p>First we need to load lookup table that contains project ID lookup
-(eg.location FC1’s corresponding project ID is CS) and unit lookup (eg.
-Temperature, water - deg C)</p>
+(eg.location FC1’s corresponding project ID is CS), unit lookup (eg.
+Temperature, water - deg C), method lookup, and method context
+lookup.</p>
 <pre class="r"><code>load(&quot;lookup_objects.rdata&quot;)</code></pre>
-<p>Bend Genetic lab report results come in two data frames (Analytical
+<p>Bend Genetic lab report result comes in two data frames (Analytical
 Report For Samples and Sample Results). We need to parse them from the
 excel file. We will first read in the excel file, skipping the first 5
 lines of the header and delete an empty column (x8). We have also
 changed the column type for Sample ID into numeric - any row without
-numbers will now be NA. This is import for parsing in the next step.</p>
+numbers will now be NA. This is for parsing in the next step.</p>
 <pre class="r"><code>bend_raw &lt;- read_excel(&quot;data-raw/bend/BendHAB.xlsx&quot;, skip = 5)  |&gt;  
   clean_names() |&gt; 
   mutate(sample_id = as.numeric(sample_id)) |&gt; 
@@ -416,38 +423,23 @@ numbers will now be NA. This is import for parsing in the next step.</p>
 <p>To parse the Analytical Report For Samples dataframe, we know that
 the data frame ends after “Sample ID 1839”. The next row is NA. So we
 parse a dataframe where it ends before the row that is NA.</p>
-<pre class="r"><code>analytical_report_for_samples &lt;- bend_raw[1:which(is.na(bend_raw$sample_id))[1] - 1, ] %&gt;% 
-  glimpse</code></pre>
-<pre><code>## Rows: 21
-## Columns: 7
-## $ sample_id      &lt;dbl&gt; 1819, 1820, 1821, 1822, 1823, 1824, 1825, 1826, 1827, 1…
-## $ location       &lt;chr&gt; &quot;JB&quot;, &quot;ELEM01&quot;, &quot;LUC01&quot;, &quot;RED01&quot;, &quot;SBMMEL01&quot;, &quot;AP01&quot;, &quot;…
-## $ date_collected &lt;chr&gt; &quot;6/14/2022 8:59&quot;, &quot;6/14/2022 10:59&quot;, &quot;6/14/2022 12:50&quot;,…
-## $ date_received  &lt;chr&gt; &quot;6/16/2022 9:32&quot;, &quot;6/16/2022 9:32&quot;, &quot;6/16/2022 9:32&quot;, &quot;…
-## $ matrix         &lt;chr&gt; &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;, &quot;Water&quot;, &quot;…
-## $ preserved      &lt;chr&gt; &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;Y&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, …
-## $ bg_id          &lt;chr&gt; &quot;BV576&quot;, &quot;BV577&quot;, &quot;BV578&quot;, &quot;BV579&quot;, &quot;BV580&quot;, &quot;BV581&quot;, &quot;…</code></pre>
+<p>To perform this parse, we use the square bracket to get the position
+of the elements from the data frame and the function which() returns the
+position of an element based on the condition (in this case we are
+looking for the position that is NA.)</p>
+<pre class="r"><code>analytical_report_for_samples &lt;- bend_raw[1:which(is.na(bend_raw$sample_id))[1] - 1, ] </code></pre>
 <p>To parse for the Sample Results data frame, we know that it starts
 after the second NA row (excel row 28 “Sample ID”), and ends at the
 third NA (excel row 54 “Quality Control”). We then create the
 corresponding column names for the sample results dataframe.</p>
-<pre class="r"><code>sample_results &lt;- bend_raw[(which(is.na(bend_raw$sample_id))[2]) : (which(is.na(bend_raw$sample_id))[3] - 1), ] %&gt;%
-  row_to_names(row_number = 1) %&gt;%
-  clean_names() %&gt;% 
-  rename(sample_id = na) %&gt;% glimpse()</code></pre>
-<pre><code>## Rows: 24
-## Columns: 7
-## $ sample_id          &lt;dbl&gt; 1819, 1820, 1821, 1822, 1823, 1824, 1825, 1826, 182…
-## $ method             &lt;chr&gt; &quot;ELISA&quot;, &quot;ELISA&quot;, &quot;ELISA&quot;, &quot;ELISA&quot;, &quot;ELISA&quot;, &quot;ELISA…
-## $ target             &lt;chr&gt; &quot;Microcystin/Nod.&quot;, &quot;Microcystin/Nod.&quot;, &quot;Microcysti…
-## $ result             &lt;chr&gt; &quot;17.62&quot;, &quot;84.21&quot;, &quot;0.53&quot;, &quot;39.40&quot;, &quot;790.0&quot;, &quot;6.14&quot;,…
-## $ quantitation_limit &lt;chr&gt; &quot;0.75&quot;, &quot;30.00&quot;, &quot;0.15&quot;, &quot;7.50&quot;, &quot;150.0&quot;, &quot;0.75&quot;, &quot;…
-## $ units              &lt;chr&gt; &quot;µg/L&quot;, &quot;µg/L&quot;, &quot;µg/L&quot;, &quot;µg/L&quot;, &quot;µg/L&quot;, &quot;µg/L&quot;, &quot;µg…
-## $ notes              &lt;chr&gt; &quot;Batch 1&quot;, &quot;Batch 2&quot;, &quot;Batch 1&quot;, &quot;Batch 2&quot;, &quot;Batch …</code></pre>
+<pre class="r"><code>sample_results &lt;- bend_raw[(which(is.na(bend_raw$sample_id))[2]) : (which(is.na(bend_raw$sample_id))[3] - 1), ] |&gt;
+  row_to_names(row_number = 1) |&gt;
+  clean_names() |&gt; 
+  rename(sample_id = na) </code></pre>
 <p>We then create a the full data frame by joining Analytical Report for
 Samples and Sample Results.</p>
 <pre class="r"><code># Seems like wqx only takes units in ug/L and not copies/mL. Method ELISA have resutls in ug/L.
-bend_full_df &lt;-   left_join(analytical_report_for_samples, sample_results) %&gt;%  glimpse()</code></pre>
+bend_full_df &lt;-   left_join(analytical_report_for_samples, sample_results) |&gt;  glimpse()</code></pre>
 <pre><code>## Joining, by = &quot;sample_id&quot;</code></pre>
 <pre><code>## Rows: 24
 ## Columns: 13
@@ -481,8 +473,8 @@ make_activity_id() function.</p>
   depth &lt;- ifelse(is.na(depth), &quot;&quot;, depth)
   paste(location_id, YYYYMMDD, hhmm,activity, equipment, depth, equipment_comment, sep = &quot;:&quot;)
 }</code></pre>
-<p>Lastly we map the full data frame to WQX schema by creating rows
-based on the values of the bend genetics data frame.</p>
+<p>Lastly we map the full data frame to WQX schema by creating rows and
+columns based on the values of the bend genetics data frame.</p>
 <pre class="r"><code>bend_wqx &lt;- bend_full_df |&gt; 
   mutate(&quot;Project ID&quot; = &quot;HAB&quot;,
          # Not all locations are recorded in master monitoring plan:
@@ -491,7 +483,9 @@ based on the values of the bend genetics data frame.</p>
          &quot;Activity ID User Supplied (PARENTs)&quot; = NA,
          &quot;Activity Type&quot; = &quot;Sample-Routine&quot;, 
          &quot;Activity Media Name&quot; = matrix,
+        # use the lubridate package function mdy_hm()to format date in m/d/y 
          &quot;Activity Start Date&quot; = format(mdy_hm(date_collected), &quot;%m/%d/%Y&quot;),
+        # use the lubridate package function mdy_hm() to formate time in HH:MM
          &quot;Activity Start Time&quot; = format(mdy_hm(date_collected), &quot;%H:%M&quot;),
          &quot;Activity Start Time Zone&quot; = &quot;PST&quot;,
         # Need activity depth/height, unit
@@ -503,13 +497,11 @@ based on the values of the bend genetics data frame.</p>
         # Confirm Equipment for bend is Water Bottle
          &quot;Sample Collection Equipment Name&quot; = &quot;Water Bottle&quot;,
          &quot;Sample Collection Equipment Comment&quot; = NA,
-        #Should we use microcystin/nod. or just microcystin
          &quot;Characteristic Name&quot; = ifelse(target == &quot;Microcystin/Nod.&quot;, &quot;Microcystin/nodularin genes mcyE/ndaF&quot;, target),
          &quot;Characteristic Name User Supplied&quot; = NA,
          &quot;Method Speciation&quot; = NA,
          &quot;Result Detection Condition&quot; = ifelse(result == &quot;ND&quot;, &quot;Not Detected&quot;, NA),
          &quot;Result Value&quot; = ifelse(result == &quot;ND&quot;, NA, result),
-        # Do we use copies/mL? do not see it in previous wqx upload
          &quot;Result Unit&quot; = ifelse(result == &quot;ND&quot;, NA, units),
          &quot;Result Measure Qualifier&quot; = NA,
          &quot;Result Sample Fraction&quot; = &quot;Total&quot;,
@@ -518,9 +510,10 @@ based on the values of the bend genetics data frame.</p>
          &quot;Statistical Base Code&quot; = NA,
          &quot;ResultTimeBasis&quot; = NA,
          &quot;Result Value Type&quot; = &quot;Actual&quot;,
-        # Seems like we are only using ELSA analysis not QPCR?
+        # method_lookup is in the lookup table. It points the methods to their IDs.
          &quot;Result Analytical Method ID&quot; = method_lookup[method],
-         &quot;Result Analytical Method Context&quot; = method_lookup[method],
+        # method_context_lookup is in the lookup table. It points the method to their method context.
+         &quot;Result Analytical Method Context&quot; = method_context_lookup[method],
          &quot;Analysis Start Date&quot; = format(mdy_hm(date_received), &quot;%m/%d/%Y&quot;),
          &quot;Result Detection/Quantitation Limit Type&quot; = &quot;Practical Quantitation Limit&quot;,
          &quot;Result Detection/Quantitation Limit Measure&quot; = quantitation_limit,
@@ -534,7 +527,7 @@ based on the values of the bend genetics data frame.</p>
                                                         depth = `Activity Depth/Height Measure`)
   ) |&gt; 
   relocate(&quot;Activity ID (CHILD-subset)&quot;, .before = &quot;Activity ID User Supplied (PARENTs)&quot;) |&gt; 
-  select(-c(0:13))%&gt;% glimpse()</code></pre>
+  select(-c(0:13))|&gt; glimpse()</code></pre>
 <pre><code>## Rows: 24
 ## Columns: 35
 ## $ `Project ID`                                  &lt;chr&gt; &quot;HAB&quot;, &quot;HAB&quot;, &quot;HAB&quot;, &quot;HA…
@@ -566,18 +559,18 @@ based on the values of the bend genetics data frame.</p>
 ## $ ResultTimeBasis                               &lt;lgl&gt; NA, NA, NA, NA, NA, NA, …
 ## $ `Result Value Type`                           &lt;chr&gt; &quot;Actual&quot;, &quot;Actual&quot;, &quot;Act…
 ## $ `Result Analytical Method ID`                 &lt;chr&gt; &quot;520060&quot;, &quot;520060&quot;, &quot;520…
-## $ `Result Analytical Method Context`            &lt;chr&gt; &quot;520060&quot;, &quot;520060&quot;, &quot;520…
+## $ `Result Analytical Method Context`            &lt;chr&gt; &quot;ABRAXIS LLC&quot;, &quot;ABRAXIS …
 ## $ `Analysis Start Date`                         &lt;chr&gt; &quot;06/16/2022&quot;, &quot;06/16/202…
 ## $ `Result Detection/Quantitation Limit Type`    &lt;chr&gt; &quot;Practical Quantitation …
 ## $ `Result Detection/Quantitation Limit Measure` &lt;chr&gt; &quot;0.75&quot;, &quot;30.00&quot;, &quot;0.15&quot;,…
 ## $ `Result Detection/Quantitation Limit Unit`    &lt;chr&gt; &quot;µg/L&quot;, &quot;µg/L&quot;, &quot;µg/L&quot;, …
 ## $ `Result Comment`                              &lt;chr&gt; &quot;Batch 1&quot;, &quot;Batch 2&quot;, &quot;B…</code></pre>
+<p>We need to change the unit “µg/L” to ug/L” to fit wqx format.</p>
 <pre class="r"><code>bend_wqx &lt;- bend_wqx |&gt; 
   mutate(&quot;Result Unit&quot; = ifelse(bend_wqx$`Result Unit` == &quot;µg/L&quot;, &quot;ug/L&quot;, bend_wqx$`Result Unit`),
          &quot;Result Detection/Quantitation Limit Unit&quot; = ifelse(bend_wqx$`Result Detection/Quantitation Limit Unit` == &quot;µg/L&quot;, &quot;ug/L&quot;, bend_wqx$`Result Detection/Quantitation Limit Unit`))</code></pre>
 <p>And we export the data frame to a csv file using the function
-write.csv(). Note we need to change the file encoding to make sure some
-of the special characters are exported correctly.</p>
+write_csv().</p>
 <pre class="r"><code>write_csv(bend_wqx, &quot;data/bend_wqx.csv&quot;, na = &quot;&quot;)</code></pre>
 </div>
 </div>

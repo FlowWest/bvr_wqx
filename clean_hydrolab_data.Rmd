@@ -5,7 +5,7 @@ date: "2022-10-10"
 output: html_document
 ---
 # HydroLab Data
-# Description of Data
+## Description of Data
 
 **Collection method:**
 
@@ -35,7 +35,7 @@ library(hms)
 
 ## Data transformations
 
-First we need to load lookup table that contains project ID lookup (eg.location FC1's corresponding project ID is CS) and unit lookup (eg. Temperature, water - deg C)
+First we need to load lookup table that contains project ID lookup (eg.location FC1's corresponding project ID is CS) and unit lookup (eg. Temperature, water - deg C), method lookup, and method context lookup.
 ```{r}
 load("data-raw/lookup_objects.rdata")
 ```
@@ -43,7 +43,7 @@ load("data-raw/lookup_objects.rdata")
 Read in individual Hydro-lab csv using the function read_csv(); we make sure the read_csv() function is reading each column type as character instead of inferring the column type.
 
 ```{r}
-raw_full_data <- read_csv('data-raw/hydro-lab/LPTNT.csv', col_types = "c") %>% glimpse
+raw_full_data <- read_csv('data-raw/hydro-lab/LPTNT.csv', col_types = "c") |> glimpse()
 ```
 
 Since the sensor dataset is quite messy, we need to decide what we need and what we discard. We parse the first line (n_max = 1) as the log file name contains the location of the sensor. We then extract the location from this line by matching it to a pattern. 
@@ -63,7 +63,7 @@ print(location_id)
 
 The results data starts after the first five lines.
 ```{r}
-raw_results_data <- read_csv('data-raw/hydro-lab/LPTNT.csv', skip = 5, col_types = "c") %>% glimpse
+raw_results_data <- read_csv('data-raw/hydro-lab/LPTNT.csv', skip = 5, col_types = "c") |> glimpse()
 ```
 If there are multiple files in a folder, we could read through all of the files and bind them together by rows.
 ```{r}
@@ -85,13 +85,13 @@ for (file in raw_file_list){
     str_extract_all(raw_location,
                     regex_pattern))
   print(location_id)
-  raw_results_data <- read_csv(file, skip = 5, col_types = "c") %>% 
+  raw_results_data <- read_csv(file, skip = 5, col_types = "c") |> 
     mutate("location_id" = location_id)
   datalist[[file]] <- raw_results_data
 }
 
 # Bind each dataframe together by rows
-all_raw_data <- do.call(rbind, datalist) %>% glimpse()
+all_raw_data <- do.call(rbind, datalist) |> glimpse()
 ```
 Before transforming the results data into WQX format, we will create a function that will help to make the "Activity ID" of WQX file. To maek the Activity ID, it needs location ID, date, activity type, equipment name, depth, time and equipment comment.
 
@@ -108,43 +108,43 @@ make_activity_id <- function(location_id, date, activity_type, equipment_name, d
   paste(location_id, YYYYMMDD, hhmm,activity, equipment, depth, equipment_comment, sep = ":")
 }
 ```
-Now we could start transforming the data into WQX format. We will do this in three steps. The first step is to remove the empty columns based on their index in the dataset using the select() function. We will use the function clean_names() to make the column names easier to work with.Then (%>%) we will remove the columns that we do not need ("ibv_svr4", "chl", "pcy") based on the column name. We will also filter the rows of the dataset based on the pattern that there will be at least 3 groups of digits in the date column (eg. 01/26/2022 contains three group of digits "01", "26", and "2022"). This will filter out the rows that do not contain results value.Lastly, we  will rename the water quality variables into WQX appropriate water quality variables.
+Now we could start transforming the data into WQX format. We will do this in three steps. The first step is to remove the empty columns based on their index in the dataset using the select() function. We will use the function clean_names() to make the column names easier to work with.Then (|>) we will remove the columns that we do not need ("ibv_svr4", "chl", "pcy") based on the column name. We will also filter the rows of the dataset based on the pattern that there will be at least 3 groups of digits in the date column (eg. 01/26/2022 contains three group of digits "01", "26", and "2022"). This will filter out the rows that do not contain results value.Lastly, we  will rename the water quality variables into WQX appropriate water quality variables.
 ```{r}
-formatted_data <- all_raw_data %>% 
-  select(-c(3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29)) %>% 
-  clean_names() %>%
-  select(-c("ibv_svr4", "chl", "pcy")) %>%
-  filter(str_count(date, "\\d+") > 2) %>% 
-  rename("Temperature, water" = "temp",
-         "Specific conductance" = "sp_cond",
-         "Resistivity" = "res",
-         "Salinity" = "sal",
-         "Total dissolved solids" = "tds",
-         "Dissolved oxygen saturation" = "do_percent",
-         "Dissolved oxygen (DO)" = "do",
-         "pH" = "p_h",
-         "Turbidity" = "turb",
-         "Monitoring Location ID" = location_id) %>% glimpse()
+formatted_data <- all_raw_data |> 
+  select(-c(3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29)) |> 
+  # clean_names() |>
+  select(-c("IBVSvr4", "CHL", "PCY")) |>
+  filter(str_count(Date, "\\d+") > 2) |> 
+  rename("Temperature, water" = "Temp",
+         "Specific conductance" = "SpCond",
+         "Resistivity" = "Res",
+         "Salinity" = "Sal",
+         "Total dissolved solids" = "TDS",
+         "Dissolved oxygen saturation" = "DO%",
+         "Dissolved oxygen (DO)" = "DO",
+         "pH" = "pH",
+         "Turbidity" = "Turb",
+         "Monitoring Location ID" = location_id) |> glimpse()
 ```
  
 In the second step, we pivot the water quality variables from short form to long form. We will call the new column containing the names "Characteristic Name" and the column containing the values "Result Value".
 
 ```{r}
-pivotted_data <- formatted_data %>% 
-  pivot_longer(!c(date, time, depth10, `Monitoring Location ID`), names_to = "Characteristic Name", "values_to" = "Result Value") %>% glimpse()
+pivotted_data <- formatted_data |> 
+  pivot_longer(!c(Date, Time, Depth10, `Monitoring Location ID`), names_to = "Characteristic Name", "values_to" = "Result Value") |> glimpse()
 ```
 
 In the last step, we format our data frame into the final WQX format. This involves creating the correct columns of the BVR WQX schema, removing the columns we do not use, and order the columns in the same order as the schema.
 ```{r}
-hydrolab_formatted_for_wqx <- pivotted_data %>% 
+hydrolab_formatted_for_wqx <- pivotted_data |> 
   mutate("Project ID" = project_id_lookup[`Monitoring Location ID`],
          "Activity ID User Supplied(PARENTs)" = "",
          "Activity Type" = "Field Msr/Obs",
          "Activity Media Name" = "Water",
-         "Activity Start Date" = format(mdy(date), "%m/%d/%Y"),
-         "Activity Start Time" = format(parse_date_time(time, c('HMS', 'HM')), "%H:%M"),
+         "Activity Start Date" = format(mdy(Date), "%m/%d/%Y"),
+         "Activity Start Time" = format(parse_date_time(Time, c('HMS', 'HM')), "%H:%M"),
          "Activity Start Time Zone" = "PST",
-         "Activity Depth/Height Measure" = as.numeric(depth10),
+         "Activity Depth/Height Measure" = as.numeric(Depth10),
          "Activity Depth/Height Unit" = "m",
          "Sample Collection Method ID" = "BVR Tribal SWQAPP",
          "Sample Collection Method Context" = "CA_BVR",
@@ -179,8 +179,8 @@ hydrolab_formatted_for_wqx <- pivotted_data %>%
          "Result Detection/Quantitation Limit Unit" = "",
          "Result Comment" = ""
          
-         ) %>% 
-  select(-c(date, depth10, time)) %>% 
+         ) |> 
+  select(-c(Date, Depth10, Time)) |> 
   relocate("Project ID",
            "Monitoring Location ID",
            "Activity ID (CHILD-subset)",
@@ -215,7 +215,7 @@ hydrolab_formatted_for_wqx <- pivotted_data %>%
            "Result Detection/Quantitation Limit Measure",
            "Result Detection/Quantitation Limit Unit",
            "Result Comment"
-           ) %>% glimpse()
+           ) |> glimpse()
 ```
 
 Lastly, we download the formatted data using write_csv().

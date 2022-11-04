@@ -5,7 +5,7 @@ date: "2022-10-12"
 output: html_document
 ---
 # Bend Genetics Data
-# Description of Data
+## Description of Data
 
 **Collection method:**
 
@@ -21,7 +21,11 @@ Clear Lake Harmful Algal Bloom (HAB), Tap Water Sampling (CalWATCH).
 
 **WQX submittal required?**
 
-Clear Lake Harmful Algal Bloom YES. Tap Water Sampling NO.
+Clear Lake Harmful Algal Bloom: YES. Tap Water Sampling: NO.
+
+**Note**
+
+Before running this script, make sure your working directory is set to the big_valley_wqx project. Check your working directory by type in the command getwd() in the console. Type ?getwd() (or any function) in the console or google search the function to see detailed documentation on the function.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -34,12 +38,13 @@ library(readr)
 ```
 
 ## Data transformations
-First we need to load lookup table that contains project ID lookup (eg.location FC1's corresponding project ID is CS) and unit lookup (eg. Temperature, water - deg C)
+First we need to load lookup table that contains project ID lookup (eg.location FC1's corresponding project ID is CS), unit lookup (eg. Temperature, water - deg C), method lookup, and method context lookup.
+
 ```{r}
 load("lookup_objects.rdata")
 ```
 
-Bend Genetic lab report results come in two data frames (Analytical Report For Samples and Sample Results). We need to parse them from the excel file. We will first read in the excel file, skipping the first 5 lines of the header and delete an empty column (x8). We have also changed the column type for Sample ID into numeric - any row without numbers will now be NA. This is import for parsing in the next step.
+Bend Genetic lab report result comes in two data frames (Analytical Report For Samples and Sample Results). We need to parse them from the excel file. We will first read in the excel file, skipping the first 5 lines of the header and delete an empty column (x8). We have also changed the column type for Sample ID into numeric - any row without numbers will now be NA. This is for parsing in the next step.
 
 ```{r}
 bend_raw <- read_excel("data-raw/bend/BendHAB.xlsx", skip = 5)  |>  
@@ -51,24 +56,25 @@ bend_raw <- read_excel("data-raw/bend/BendHAB.xlsx", skip = 5)  |>
 
 To parse the Analytical Report For Samples dataframe, we know that the data frame ends after "Sample ID 1839". The next row is NA. So we parse a dataframe where it ends before the row that is NA.
 
+To perform this parse, we use the square bracket to get the position of the elements from the data frame and the function which() returns the position of an element based on the condition (in this case we are looking for the position that is NA.)
+
 ```{r}
-analytical_report_for_samples <- bend_raw[1:which(is.na(bend_raw$sample_id))[1] - 1, ] %>% 
-  glimpse
+analytical_report_for_samples <- bend_raw[1:which(is.na(bend_raw$sample_id))[1] - 1, ] 
 ```
 
-To parse for the Sample Results data frame, we know that it starts after the second NA row (excel row 28 "Sample ID"), and ends at the third NA (excel row 54 "Quality Control"). We then create the corresponding column names for the sample results dataframe.
+To parse for the Sample Results data frame, we know that it starts after the second NA row (excel row 28 "Sample ID"), and ends at the third NA (excel row 54 "Quality Control"). We then create the corresponding column names for the sample results dataframe. 
 
 ```{r}
-sample_results <- bend_raw[(which(is.na(bend_raw$sample_id))[2]) : (which(is.na(bend_raw$sample_id))[3] - 1), ] %>%
-  row_to_names(row_number = 1) %>%
-  clean_names() %>% 
-  rename(sample_id = na) %>% glimpse()
+sample_results <- bend_raw[(which(is.na(bend_raw$sample_id))[2]) : (which(is.na(bend_raw$sample_id))[3] - 1), ] |>
+  row_to_names(row_number = 1) |>
+  clean_names() |> 
+  rename(sample_id = na) 
 ```
 
 We then create a the full data frame by joining Analytical Report for Samples and Sample Results.
 ```{r}
 # Seems like wqx only takes units in ug/L and not copies/mL. Method ELISA have resutls in ug/L.
-bend_full_df <-   left_join(analytical_report_for_samples, sample_results) %>%  glimpse()
+bend_full_df <-   left_join(analytical_report_for_samples, sample_results) |>  glimpse()
 ```
 
 To prepare data transformation to WQX format, we create the make_activity_id() function.
@@ -90,7 +96,8 @@ make_activity_id <- function(location_id, date, activity_type, equipment_name, d
 }
 ```
 
-Lastly we map the full data frame to WQX schema by creating rows based on the values of the bend genetics data frame.
+Lastly we map the full data frame to WQX schema by creating rows and columns based on the values of the bend genetics data frame.
+
 ```{r}
 bend_wqx <- bend_full_df |> 
   mutate("Project ID" = "HAB",
@@ -100,7 +107,9 @@ bend_wqx <- bend_full_df |>
          "Activity ID User Supplied (PARENTs)" = NA,
          "Activity Type" = "Sample-Routine", 
          "Activity Media Name" = matrix,
+        # use the lubridate package function mdy_hm()to format date in m/d/y 
          "Activity Start Date" = format(mdy_hm(date_collected), "%m/%d/%Y"),
+        # use the lubridate package function mdy_hm() to formate time in HH:MM
          "Activity Start Time" = format(mdy_hm(date_collected), "%H:%M"),
          "Activity Start Time Zone" = "PST",
         # Need activity depth/height, unit
@@ -112,13 +121,11 @@ bend_wqx <- bend_full_df |>
         # Confirm Equipment for bend is Water Bottle
          "Sample Collection Equipment Name" = "Water Bottle",
          "Sample Collection Equipment Comment" = NA,
-        #Should we use microcystin/nod. or just microcystin
          "Characteristic Name" = ifelse(target == "Microcystin/Nod.", "Microcystin/nodularin genes mcyE/ndaF", target),
          "Characteristic Name User Supplied" = NA,
          "Method Speciation" = NA,
          "Result Detection Condition" = ifelse(result == "ND", "Not Detected", NA),
          "Result Value" = ifelse(result == "ND", NA, result),
-        # Do we use copies/mL? do not see it in previous wqx upload
          "Result Unit" = ifelse(result == "ND", NA, units),
          "Result Measure Qualifier" = NA,
          "Result Sample Fraction" = "Total",
@@ -127,9 +134,10 @@ bend_wqx <- bend_full_df |>
          "Statistical Base Code" = NA,
          "ResultTimeBasis" = NA,
          "Result Value Type" = "Actual",
-        # Seems like we are only using ELSA analysis not QPCR?
+        # method_lookup is in the lookup table. It points the methods to their IDs.
          "Result Analytical Method ID" = method_lookup[method],
-         "Result Analytical Method Context" = method_lookup[method],
+        # method_context_lookup is in the lookup table. It points the method to their method context.
+         "Result Analytical Method Context" = method_context_lookup[method],
          "Analysis Start Date" = format(mdy_hm(date_received), "%m/%d/%Y"),
          "Result Detection/Quantitation Limit Type" = "Practical Quantitation Limit",
          "Result Detection/Quantitation Limit Measure" = quantitation_limit,
@@ -143,16 +151,17 @@ bend_wqx <- bend_full_df |>
                                                         depth = `Activity Depth/Height Measure`)
   ) |> 
   relocate("Activity ID (CHILD-subset)", .before = "Activity ID User Supplied (PARENTs)") |> 
-  select(-c(0:13))%>% glimpse()
+  select(-c(0:13))|> glimpse()
 ```
+We need to change the unit "µg/L" to ug/L" to fit wqx format.
+
 ```{r}
 bend_wqx <- bend_wqx |> 
   mutate("Result Unit" = ifelse(bend_wqx$`Result Unit` == "µg/L", "ug/L", bend_wqx$`Result Unit`),
          "Result Detection/Quantitation Limit Unit" = ifelse(bend_wqx$`Result Detection/Quantitation Limit Unit` == "µg/L", "ug/L", bend_wqx$`Result Detection/Quantitation Limit Unit`))
 ```
 
-And we export the data frame to a csv file using the function write.csv(). Note we need to change the file encoding to make sure some of the special characters are exported correctly.
-
+And we export the data frame to a csv file using the function write_csv(). 
 ```{r}
 write_csv(bend_wqx, "data/bend_wqx.csv", na = "")
 ```
