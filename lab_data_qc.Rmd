@@ -4,7 +4,8 @@ author: "Inigo Peng"
 date: "2022-10-24"
 output: html_document
 ---
-#WQX Data QC
+# WQX Data QC
+
 ## Description of Data
 
 The data we are using to go through the QC process is the cleaned WQX dataset from Alpha Lab, Bend Genetics, and Hydro Lab.

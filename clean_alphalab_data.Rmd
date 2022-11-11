@@ -130,11 +130,11 @@ clean_alpha_lab <- raw_alpha_lab |>
     "Method Speciation" = ifelse(ANALYTE == "Nitrate as N", "as N", NA_character_),
     # use case_when when there are multiple conditions
     "Result Detection Condition" = case_when(
-      Result == "ND" ~ "Not Reported",
+      Result == "ND" ~ "Below Detection Limit",
       Result == "Absent" ~ "Not Present",
       Result == "Present" ~ "Detected Not Quantified",
       TRUE ~ NA_character_),
-    "Result Value" = ifelse(Result == "Absent" | Result == "ND" | Result == "Present", NA_character_, Result),
+    "Result Value" = ifelse(Result %in% c("Absent","ND","Present"), NA_character_, Result),
     "Result Unit" = ifelse(UNITS == ".", NA_character_, UNITS),
     "Result Measure Qualifier" = NA,
     "Result Sample Fraction" = "Total",

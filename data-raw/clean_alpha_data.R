@@ -115,3 +115,11 @@ clean_alpha_lab <- clean_alpha_lab %>%
   relocate("Result Analytical Method Context", .before = "Analysis Start Date")
 
 write_csv(clean_alpha_lab, "data/alpha_lab_wqx.csv", na = "")
+**NA and Unknown Values**
+  
+  * `r round(sum(is.na(combined_lab_data$`Activity Depth/Height Measure`))/nrow(combined_lab_data), 3) * 100` % of values in the `Activity Depth/Height Measure` column are NA.
+
+* `r round(sum(is.na(combined_lab_data$`Result Value`))/nrow(combined_lab_data), 3) * 100` % of values in the `Result Value` column are NA.
+
+* `r round(sum(is.na(combined_lab_data$`Result Detection/Quantitation Limit Measure`))/nrow(combined_lab_data), 3) * 100` % of values in the `Result Detection/Quantitation Limit Measure` column are NA.
+
