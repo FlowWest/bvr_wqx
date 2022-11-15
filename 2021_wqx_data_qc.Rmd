@@ -1,0 +1,463 @@
+---
+title: "2020 WQX Data QC"
+author: "Inigo Peng"
+date: "2022-10-24"
+output: html_document
+---
+# WQX Data QC
+  
+## Description of Data
+  
+The data we are using to go through the QC process is the 2020 WQX Data.
+
+**Timeframe:** 2020
+
+```{r setup, include=FALSE}
+options(width = 900)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE
+)
+
+library(dplyr)
+library(janitor)
+library(readxl)
+library(stringr)
+library(lubridate)
+library(readr)
+library(ggplot2)
+```
+
+## Access Lab Data
+
+
+```{r}
+wqx_data <- read_excel("data-raw/WQXJan-Dec2020.xlsx", sheet = "Results") 
+```
+
+## Explore Numeric Variables
+
+Now we explore these numeric values. 
+
+```{r}
+wqx_data |> select_if(is.numeric) |> colnames()
+```
+
+### Variable: `Activity Depth/Height Measure`, `Result Value`, `Result Detection/Quantitation Limit Measure`
+
+The summary function produces summaries of the results such as min, max. Values that are not in the normal range could be spotted.
+
+```{r}
+summary(wqx_data$`Activity Depth/Height Measure`)
+summary(wqx_data$`Result Value`)
+summary(wqx_data$`Result Detection/Quantitation Limit Measure`)
+
+```
+
+
+
+## Explore water quality variables: {.tabset}
+
+```{r}
+unique(wqx_data$`Characteristic Name`)
+```
+We could see that there are variables where they are the same but with different capitalization (eg. "Temperature , Water" and "Temperature, water".). We will make it uniform so that we get a more accurate presentation of the data spread.
+
+```{r}
+wqx_data_cleaned <- wqx_data |> 
+  mutate(case_when(`Characteristic Name` == "Temperature, Air" ~ "Temperature, air",
+                   `Characteristic Name` == "Temperature, Water" ~ "Temperature, water",
+                   `Characteristic Name` == "Organic carbon" ~ "Organic Carbon",
+                   `Characteristic Name` == "Anatoxin-A" ~ "Anatoxin-a",
+                   `Characteristic Name` == "Specific conductance" ~ "Specific Conductance",
+                   TRUE ~ as.character(`Characteristic Name`)))
+```
+
+
+### Variable: `Result Value`
+
+**Plotting result value per water quality variable 
+
+```{r}
+wqx_data |> 
+  ggplot(aes(x = `Result Value`,  y = `Characteristic Name`)) +
+  geom_boxplot(color = "blue") +
+  labs(x = "Result Value",
+       y = "Characteristic Name") +
+  theme_minimal()
+```
+
+We could filter our data based on each water quality variable to get a more detailed look at each variable.
+
+### Water Quality Characteristic: Temperature, air
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Temperature, air") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot() +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Temperature, air") |> 
+          select(`Result Value`))
+```
+
+
+### Water Quality Characteristic: Temperature, water
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Temperature, water") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Temperature, water") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Specific conductance
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Specific conductance") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Specific conductance") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Resistivity
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Resistivity") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Resistivity") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Salinity
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Salinity") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Salinity") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Total dissolved solids
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Total dissolved solids") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Total dissolved solids") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Turbidity
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Turbidity") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Turbidity") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Chlorophyll a
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Chlorophyll a") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Chlorophyll a") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Phycocyanin
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Phycocyanin") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Phycocyanin") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Dissolved oxygen saturation
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Dissolved oxygen saturation") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Dissolved oxygen saturation") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Dissolved oxygen (DO)
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Dissolved oxygen (DO)") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Dissolved oxygen (DO)") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: pH
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "pH") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "pH") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Velocity - stream
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Velocity - stream") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Velocity - stream") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: RBP2, Instream features, est. stream depth
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "RBP2, Instream features, est. stream depth") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "RBP2, Instream features, est. stream depth") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Total Coliform
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Total Coliform") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Total Coliform") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Fecal Coliform
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Fecal Coliform") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Fecal Coliform") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Oil and Grease
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Oil and Grease") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Oil and Grease") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Kjeldahl Nitrogen
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Kjeldahl Nitrogen") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Kjeldahl Nitrogen") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Phosphorus
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Phosphorus") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Phosphorus") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Organic Carbon
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Organic Carbon") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Organic Carbon") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Depth, Secchi disk depth
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Depth, Secchi disk depth") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Depth, Secchi disk depth") |> 
+          select(`Result Value`))
+```
+
+### Water Quality Characteristic: Anatoxin-a
+```{r}
+wqx_data |> 
+  filter(`Characteristic Name` == "Anatoxin-a") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_boxplot(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(wqx_data |> 
+          filter(`Characteristic Name` == "Anatoxin-a") |> 
+          select(`Result Value`))
+```
+
