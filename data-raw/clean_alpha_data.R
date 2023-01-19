@@ -65,8 +65,8 @@ clean_alpha_lab <- raw_alpha_lab %>%
     "Activity Start Time" = format(mdy_hms(sampdate), "%H:%M"),
     "Activity Start Time Zone" = "PST",
     # not depth or height
-    "Activity Depth/Height Measure" = NA,
-    "Activity Depth/Height Unit" = NA,
+    "Activity Depth/Height Measure" = "0.152",
+    "Activity Depth/Height Unit" = "m",
     "Sample Collection Method ID" = "BVR SWQAPP",
     "Sample Collection Method Context" = "CA_BVR",
     "Sample Collection Equipment Name" = "Water Bottle",

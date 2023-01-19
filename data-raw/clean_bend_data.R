@@ -8,6 +8,68 @@ load("lookup_objects.rdata")
 
 # ------------------------------------------------------------------------------
 # Parse data based on sample_id
+read_bend <- function(file) {
+  vect_file_name <- c(file)
+  # print(vect_file_name)
+  if (stringr::str_detect(vect_file_name, "xlsx$") == TRUE) {
+    bend_raw <- read_excel(file, skip = 5)|>  
+      clean_names() |> 
+      mutate(sample_id = as.numeric(sample_id)) |> 
+      select(-x8)  
+    first_df <- bend_raw[1:which(is.na(bend_raw$sample_id))[1] - 1, ]
+    second_df <- bend_raw[(which(is.na(bend_raw$sample_id))[2]) : (which(is.na   (bend_raw$sample_id))[3] - 1), ] |>
+      row_to_names(row_number = 1) |>
+      clean_names() |> 
+      rename(sample_id = na)
+  }else{
+    header_chunk <- readr::read_lines(file, n_max = 100)
+    skip_n <- which(stringr::str_detect(header_chunk, "^SAMPLE RESULTS"))
+    bend_raw <- read_csv(file, skip = skip_n)
+    bend_raw <- bend_raw|> 
+      filter(is.na(bend_raw$`Sample ID`) == FALSE)|>  
+      clean_names() |> 
+      # mutate(sample_id = as.numeric(sample_id)) |> 
+      select(-x8)
+    first_df <- bend_raw[1:which(bend_raw$sample_id == "QUALITY CONTROL") - 1, ]
+    second_df <- bend_raw[which(bend_raw$sample_id == "QUALITY CONTROL") + 1 : which(bend_new$sample_id == "QUALIFIERS/COMMENTS/NOTES"), ]|>
+      row_to_names(row_number = 1) |>
+      clean_names() 
+      # rename(sample_id = na)
+    }
+  bend_full_df <-   left_join(first_df, second_df)
+}
+
+bend_raw <- read_bend("data-raw/bend/20220913_BV_Results.csv")
+bend_raw_xlsx <- read_bend("data-raw/bend/BendHAB.xlsx")
+
+# ------------------------------------------------------------------------------
+bend_new <- read_csv("data-raw/bend/20220913_BV_Results.csv", skip = 52)
+bend_new <- bend_new|> 
+  filter(is.na(bend_new$`Sample ID`) == FALSE)|>  
+  clean_names()  |> 
+  # mutate(sample_id = as.numeric(sample_id)) |> 
+  select(-x8)
+
+first_df <- bend_new[1:which(bend_new$sample_id == "QUALITY CONTROL") - 1, ]
+second_df <- bend_new[which(bend_new$sample_id == "QUALITY CONTROL") + 1 : which(bend_new$sample_id == "QUALIFIERS/COMMENTS/NOTES"), ]|>
+  row_to_names(row_number = 1) |>
+  clean_names() |> glimpse()
+# header_chunk <- readr::read_lines("data-raw/bend/20220913/_BV_Results.csv", n_max = 100)
+# header_chunk <- readr::read_lines("data-raw/bend/BendHAB.xlsx", n_max = 100)
+
+skip_n <- which(stringr::str_detect(header_chunk, "^SAMPLE RESULTS"))
+# x <- read_csv("data-raw/bend/20220913_BV_Results.csv", skip = skip_n)
+
+# file <- c("data-raw/bend/BendHAB.xlsx")
+# stringr::str_detect(file, "xlsx$/")
+# ------------------------------------------------------------------------------
+
+
+# bend_raw <- read_excel("data-raw/bend/BendHAB.xlsx") |> 
+  # as_tibble() |> 
+  # slice(100) |> glimpse()
+  # unlist(., use.names= FALSE)
+
 bend_raw <- read_excel("data-raw/bend/BendHAB.xlsx", skip = 5)  |>  
   clean_names() |> 
   mutate(sample_id = as.numeric(sample_id)) |> 
@@ -50,8 +112,8 @@ bend_wqx <- bend_full_df |>
          "Activity Start Time" = format(mdy_hm(date_collected), "%H:%M"),
          "Activity Start Time Zone" = "PST",
         # Need activity depth/height, unit
-         "Activity Depth/Height Measure" = NA,
-         "Activity Depth/Height Unit" = NA,
+         "Activity Depth/Height Measure" = "0.152",
+         "Activity Depth/Height Unit" = "m",
         # Confirm Sample Collection method id is BVR SWQAPP
          "Sample Collection Method ID" = "BVR SWQAPP",
          "Sample Collection Method Context" = "CA_BVR",
