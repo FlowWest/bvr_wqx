@@ -103,24 +103,146 @@ unit_lookup <- c(
   "Dissolved oxygen saturation" = "%",
   "Dissolved oxygen (DO)" = "mg/L", 
   "pH" = "None", 
-  "Turbidity" = "NTU")
+  "Turbidity" = "NTU",
+  "Oil & Grease (HEM)" = "mg/L",
+  "Nitrate + Nitrite as N" = "mg/L",
+  "Phosphorus, total" = "mg/L",
+  "Total Organic Carbon" = "mg/L")
 
-method_lookup <- c(
+method_id_lookup <- c(
   "SM9223B" = "9223-B",
   "EPA 300.0" = "300.0",
   "ELISA" = "520060",
-  "QPCR" = "1611"
+  "QPCR" = "1611",
+  "EPA 1664A" = "1664A",
+  "SM4500-NO3 E" = "4500-NO3(E)",
+  "SM4500-P F" = "4500-P-F",
+  "SM5310C" = "5310-C"
 )
 
 method_context_lookup <- c(
   "SM9223B" = "APHA",
   "EPA 300.0" = "USEPA",
   "ELISA" = "ABRAXIS LLC",
-  "QPCR" = "USEPA"
+  "QPCR" = "USEPA",
+  "EPA 1664A" = "USEPA",
+  "SM4500-NO3 E" = "APHA",
+  "SM4500-P F" = "APHA",
+  "SM5310C" = "APHA"
+  
+)
+
+characteristic_lookup <- c(
+  "Oil & Grease (HEM)" = "Oil and Grease",
+  "Phosphorus, total" = "Phosphorus",
+  "Total Organic Carbon" = "Organic carbon",
+  "E. Coli" = "Escherichia coli"
+)
+
+project_sites <- c(
+  "M1",
+  "M2",
+  "M3",
+  "M4",
+  "HSP",
+  "BVSWD1",
+  "NBPRSC",
+  "RSTCC",
+  "BVCL1",
+  "BVRTC1",
+  "BVRTCC",
+  "BVSWDRV",#not in cdx
+  "RVSI1",#not in cdx
+  "RVSI2",#not in cdx
+  "BVCL2",	
+  "BVCL3",	
+  "BVCL5",	
+  "BVCL6",	
+  "BVCL11",	
+  "BVCL12",	
+  "BVCL13",	
+  "BVCL14",	
+  "BVCL15",	
+  "BVCL16",	
+  "BVCL17",	
+  "BVCL18",	
+  "BVCL19",	
+  "BVCL20",
+  "FC1",
+  "FC2",
+  "FC3",#not in cdx
+  "MC1",
+  "MC2",
+  "TC1",
+  "AC1",
+  "AC2",
+  "AC3",
+  "AC4",
+  "MCC1",
+  "KC1",
+  "CC1",
+  "SC1",
+  "SC2",#not in cdx
+  "SHC2",#not in cdx
+  "CC2",#not in cdx
+  "SIEG01",#not in cdx
+  "COOP01",#not in cdx
+  "CLOV01",#not in cdx
+  "DRY01",#not in cdx
+  "COY01",#not in cdx
+  "SCOT01",#not in cdx
+  "AND01",#not in cdx
+  "NFORK01",#not in cdx
+  "LONG01", #not in cdx
+  "PUT01", #not in cdx
+  "MID01", #not in cdx
+  "KC5", #not in cdx
+  "AP01",
+  "BP",
+  "CLOAKS01",
+  "CLV7",
+  "CP",
+  "ELEM01",
+  "GH",
+  "HB",
+  "JB",
+  "KEYS01",
+  "KEYS03",
+  "KP01",
+  "LC01",
+  "LPTNT",
+  "LS",
+  "LS2",
+  "LUC01",
+  "RED01",
+  "RODS",
+  "SBMMEL01",
+  "SHADY01",
+  "UBL",
+  "CL-1",
+  "CL-3",
+  "CL-4",
+  "CL-5",
+  "LA-03",
+  "NR-02",
+  "OA-04",
+  "UA-01",
+  "UA-06",
+  "UA-07",
+  "UA-08",
+  "PILLS01", #not in cdx
+  "LAKEPILS01"  #not in cdx
 )
 save_objects <- function() {
-  save(project_id_lookup, unit_lookup, method_lookup, method_context_lookup,
-       file="lookup_objects.rdata")
+  save(
+    project_id_lookup,
+    unit_lookup,
+    method_id_lookup,
+    method_context_lookup,
+    characteristic_lookup,
+    project_sites,
+    file = "lookup_objects.rdata"
+  )
   
 }
 
