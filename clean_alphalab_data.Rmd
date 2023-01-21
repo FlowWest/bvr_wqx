@@ -24,9 +24,13 @@ Storm Water Sampling (SW), Tap Water Sampling (CalWATCH).
 
 Storm Water Sampling: YES. Tap Water Sampling: NO.
 
-**Note**
+**Note:**
 
-Before running this script, make sure your working directory is set to the big_valley_wqx project. Check your working directory by type in the command getwd() in the console. Type ?getwd() (or any function) in the console or google search the function to see detailed documentation on the function.
+This script is a dynamic markdown where the user will be able to interact with the document. To run the document, click on "Run Document" to render it into an HTML format. 
+
+Usually, to run a markdown script, the user needs to make sure the project is set to the appropriate working directory. However, since this is an interactive markdown, we do not have to worry about that. The files we need are the Alpha Lab excel files that needs to get updated, and the lookup_objects.rdata.
+
+In these markdown documents, the shaded sections are the code that are used to process the data. If you have any question about any of the functions used, type in ? followed by the function (eg. ?mutate()) in the console,  or google search the function to see detailed documentation on the function.  
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -38,7 +42,7 @@ library(lubridate)
 
 ## Data transformations
 
-First we need to load lookup table that contains project ID lookup (eg.location FC1's corresponding project ID is CS), unit lookup (eg. Temperature, water - deg C), method lookup, and method context lookup.
+First we need to load the lookup table named "lookup_object.rdata" that contains project ID lookup (eg.location FC1's corresponding project ID is CS), unit lookup (eg. Temperature, water - deg C), method lookup, method context lookup and project sites. Click Open. 
 
 ```{r}
 fileInput("lookup_objects", "Load lookup_objects.rdata")
@@ -49,38 +53,22 @@ load_file <- reactive({
     return(NULL)
   inFile <- input$lookup_objects
   file <- inFile$datapath
-  # load the file into new environment and get it from there
-  # e = new.env()
+  # load the file into session environment and get it from there
   sessionEnvir <- sys.frame()
   load(file, sessionEnvir)
-  # return (name)
 })
 
 ```
 
-Since the original files are in xls format, we could read in individual AlphaLab excel file using the function read_excel() from the readxl package.
 
-```{r}
-make_activity_id <- function(location_id, date, activity_type, equipment_name, depth = NULL, time = NULL, equipment_comment = NULL) {
-  YYYYMMDD <- gsub('/', '', date)
-  activity <- ifelse(activity_type == "Sample-Routine", "SR", "FM")
-  equipment <- case_when(
-      equipment_name == "Probe/Sensor" ~ "PS",
-      equipment_name == "Water Bottle" ~ "WB",
-      TRUE ~ NA_character_
-    )
-  hhmm <- gsub(':', '', time)
-  equipment_comment <- case_when(
-    equipment_comment == "Hydrolab Surveyor DS5 Multiprobe" ~ "Hydro",
-    equipment_comment == "AlgaeChek Ultra Fluorometer" ~ "Algae", 
-    TRUE ~ NA_character_)
-  depth <- ifelse(is.na(depth), "", depth)
-  paste(location_id, YYYYMMDD, hhmm,activity, equipment, depth, equipment_comment, sep = ":")
-}
-```
+After loading the lookup_objects.rdata, click on browse and find the appropriate Alpha Lab excel files on your computer. Select all of the files (could select multiple) that need to be transformed to wqx format.Since the original files are in xls format, we could read in the excel files using the function read_excel() from the readxl package. At the same time, this script will parse the SAMPLENAME column for the sample location in the column.
 
+Once the parsing is finished, the header of the table will appear below this chunk.
 ```{r}
-fileInput("alpha_files", "Choose AlphaLab Excel File", accept = ".xlsx", multiple = TRUE)
+fileInput("alpha_files",
+          "Choose AlphaLab Excel File",
+          accept = ".xlsx",
+          multiple = TRUE)
 
 all_files <- reactive({
   req(input$alpha_files)
@@ -102,74 +90,14 @@ renderTable({
 
 ```
 
-```{r}
-# raw_alpha_data <- read_excel('data-raw/alpha-lab/22G2998 FINAL EXCEL 09 Aug 22 1018.xls') |> glimpse()
-```
 
 Alternatively, we could read in all of the files in the folder at once and bind them by row into one data frame. We do this by listing out all of the files in the folder using the function list.files(). 
 
-```{r}
-# fileInput("alpha_folder", "Choose the folder containing AlphaLab Excel File")
-# 
-# observe({
-#   input$alpha_folder
-# })
-
-# renderTable({
-#   file_list <- list.files(folder,
-#                           full.names = T)
-#   raw_alpha_lab <- data.frame()
-#   
-#   for (file in file_list) {
-#     print(file)
-#     raw_alpha_lab <- rbind(raw_alpha_lab, read_excel(file))
-#   }
-#   raw_alpha_lab
-# })
-```
-```{r}
-# file_list <- list.files("data-raw/alpha-lab",
-#                           full.names = T)
-```
-
 We then create an empty data frame called raw_alpha_lab. We loop through the files in the folder, for each file, we use the above function read_excel() to read in the file. We then use the function rbind() to join each the data from each file to the empty data frame.
 
-```{r}
-
-
-
-# 
-# observe({
-#   req(input$alpha_files)
-#   values <- reactiveValues(df_data = all_files())
-# # iterate through the sample name for each row to parse the location
-#   # full_df <- 
-#   for (row in 1:nrow(values$df_data)) {
-#     for (n in 1:length(strsplit(values$df_data$SAMPLENAME, " ")[[row]])) {
-#       if (strsplit(values$df_data$SAMPLENAME, " ")[[row]][n] %in% locations) {
-#         
-#         values$df_data$SAMPLENAME[row] = strsplit(values$df_data$SAMPLENAME, " ")[[row]][n]
-#         # values$df_data <- temp
-#         print(values$df_data$SAMPLENAME)
-#         # print(full_df$SAMPLENAME[row])
-#         # print(full_df$SAMPLENAME)
-#         # print(strsplit(all_files()$SAMPLENAME, " ")[[row]][n])
-#         # print(all_files()$SAMPLENAME[row] == "X") 
-#         # all_files <- all_files() |>
-#           # mutate("Location" = strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]][n])
-#       }
-#     }
-#   }
-# })
-# 
-# renderTable({
-#   head(clean_location_file())
-# })
-```
 The end result is one data frame with all of the data from the folder.
 
 Before transforming the results data into WQX format, we will create a function that will help to make the `Activity ID` column of WQX file. To make the Activity ID, it needs location ID, date, activity type, equipment name, depth, time and equipment comment. Simply run this function (line 142) with a mutate() statement to create the `Activity ID`.
-
 
 
 To transform the data into WQX format, we will create columns based on WQX schema using the mutate() function from the tidyverse package. We will then drop the columns we do not need and reorder the data.
@@ -184,22 +112,32 @@ mutate(Characteristic Name" = ifelse(ANALYTE == "E. Coli", "Escherichia coli", A
 It could be read as: using the dataset raw_alpha_lab, we create a new column named `Characteristic Name`. If the cell value from the `ANALYTE` column from raw_alpha_lab is E. Coli (this is the condition), the corresponding cell value in the `Characteristic Name` column will be Eschericia coli. If the condition is not met, fill the rest of the `Characteristic Name` column with values from the `ANALYTE` column.
 
 ```{r}
-# new_table <- reactive({
-#   all_files <- all_files() |> 
-#     mutate(
-#       "Project ID" = ""
-#     )
-# })
-# 
+make_activity_id <- function(location_id, date, activity_type, equipment_name, depth = NULL, time = NULL, equipment_comment = NULL) {
+  YYYYMMDD <- gsub('/', '', date)
+  activity <- ifelse(activity_type == "Sample-Routine", "SR", "FM")
+  equipment <- case_when(
+      equipment_name == "Probe/Sensor" ~ "PS",
+      equipment_name == "Water Bottle" ~ "WB",
+      TRUE ~ NA_character_
+    )
+  hhmm <- gsub(':', '', time)
+  equipment_comment <- case_when(
+    equipment_comment == "Hydrolab Surveyor DS5 Multiprobe" ~ "Hydro",
+    equipment_comment == "AlgaeChek Ultra Fluorometer" ~ "Algae", 
+    TRUE ~ NA_character_)
+  depth <- ifelse(is.na(depth), "", depth)
+  paste(location_id, YYYYMMDD, hhmm,activity, equipment, depth, equipment_comment, sep = ":")
+}
+```
+
+```{r}
 partial_clean_alpha_lab <- reactive({
+  
   req(input$alpha_files)
   
   all_files <- all_files() |>
-    # clean_names() |>
-    # Are we using calwatch as project ID?
     mutate(
       "Project ID" = "SW",
-    # No location ID or sampleIDin these alpha lab data
     "Monitoring Location ID" = SAMPLENAME,
     "Activity ID User Supplied (PARENTs)" = NA,
     "Activity Type" = "Sample-Routine",
@@ -207,7 +145,6 @@ partial_clean_alpha_lab <- reactive({
     "Activity Start Date" = format(mdy_hms(SAMPDATE), "%m/%d/%Y"),
     "Activity Start Time" = format(mdy_hms(SAMPDATE), "%H:%M"),
     "Activity Start Time Zone" = "PST",
-    # not depth or height
     "Activity Depth/Height Measure" = "0.152",
     "Activity Depth/Height Unit" = "m",
     "Sample Collection Method ID" = "BVR SWQAPP",
@@ -249,7 +186,6 @@ partial_clean_alpha_lab <- reactive({
       equipment_name = `Sample Collection Equipment Name`,
       depth = `Activity Depth/Height Measure`
     ),
-    # Casnumber? Context APHA? 
     "Result Analytical Method Context" = method_context_lookup[METHODNAME],
     "Analysis Start Date" = format(mdy_hms(ANADATE), "%m/%d/%Y"),
     "Result Detection/Quantitation Limit Type" = ifelse(DL == "NA", NA_character_, "Method Detection Level"),
