@@ -241,7 +241,7 @@ save_objects <- function() {
     method_context_lookup,
     characteristic_lookup,
     project_sites,
-    file = "lookup_objects.rdata"
+    file = "data/lookup_objects.rdata"
   )
   
 }
