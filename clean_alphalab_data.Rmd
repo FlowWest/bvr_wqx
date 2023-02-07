@@ -1,0 +1,617 @@
+---
+title: "Alpha Lab Data Cleaning and Upload"
+author: "Inigo Peng"
+date: "2022-10-12"
+runtime: shiny
+output: 
+  html_document:
+    code_folding: hide
+---
+## Description of Data
+
+**Collection method:**
+
+Sampling Bottles
+
+**Raw File format:**
+
+AlphaLab CSV lab report
+
+**Monitoring (Project ID)**
+
+Storm Water Sampling (SW); Tap Water Sampling (CalWATCH).
+
+**WQX submittal required?**
+
+Storm Water Sampling: YES; Tap Water Sampling: NO.
+
+**Note:**
+
+This script is a dynamic markdown where the user can interact with the document. To run the document, click on "Run Document" to render it in HTML format. 
+
+Usually, to run a markdown script, the user must ensure the project is set to the appropriate working directory. However, since this is an interactive markdown, we do not have to worry about that. The only files we need are the Alpha Lab excel files that need to get updated.
+
+In these markdown documents, click on the "code" button on the right to see the code used to process the data. If you have questions about any of the functions used, type in "? " followed by the function (eg. `?mutate`) in the console,  or google search the function to see detailed documentation.  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      tidy.opts = list(width.cutoff = 60), tidy = TRUE)
+
+library(tidyverse)
+library(readxl)
+library(lubridate)
+library(wqxWeb)
+library(DT)
+library(shiny)
+library(stringr)
+```
+```{r, include=FALSE}
+project_id_lookup <- c(
+  "M1" = "MS",
+  "M2" = "MS",
+  "M3" = "MS",
+  "M4" = "MS",
+  "HSP" = "SW",
+  "BVSWD1" = "SW",
+  "NBPRSC" = "SW",
+  "RSTCC" = "SW",
+  "BVCL1" = "SW",
+  "BVRTC1" = "SW",
+  "BVRTCC" = "SW",
+  "BVSWDRV" = "SW",#not in cdx
+  "RVSI1" = "SW",#not in cdx
+  "RVSI2" = "SW",#not in cdx
+  "BVCL2" = "CLM",	
+  "BVCL3" = "CLM",	
+  "BVCL5" = "CLM",	
+  "BVCL6" = "CLM",	
+  "BVCL11" = "CLM",	
+  "BVCL12" = "CLM",	
+  "BVCL13" = "CLM",	
+  "BVCL14" = "CLM",	
+  "BVCL15" = "CLM",	
+  "BVCL16" = "CLM",	
+  "BVCL17" = "CLM",	
+  "BVCL18" = "CLM",	
+  "BVCL19" = "CLM",	
+  "BVCL20" = "CLM",
+  "FC1" = "CS", 
+  "FC2" = "CS",
+  "FC3" = "CS",#not in cdx
+  "MC1" = "CS",
+  "MC2" = "CS",
+  "TC1" = "CS",
+  "AC1" = "CS",
+  "AC2" = "CS",
+  "AC3" = "CS",
+  "AC4" = "CS",
+  "MCC1" = "CS",
+  "KC1" = "CS",
+  "CC1" = "CS",
+  "SC1" = "CS",
+  "SC2" = "CS",#not in cdx
+  "SHC2"= "CS",#not in cdx
+  "CC2" = "CS",#not in cdx
+  "SIEG01" = "CS",#not in cdx
+  "COOP01" = "CS",#not in cdx
+  "CLOV01" = "CS",#not in cdx
+  "DRY01" = "CS",#not in cdx
+  "COY01" = "CS",#not in cdx
+  "SCOT01"= "CS",#not in cdx
+  "AND01" = "CS",#not in cdx
+  "NFORK01" = "CS",#not in cdx
+  "LONG01" = "CS", #not in cdx
+  "PUT01" = "CS", #not in cdx
+  "MID01"= "CS", #not in cdx
+  "KC5"= "CS", #not in cdx
+  "AP01" = "HAB",
+  "BP" = "HAB",
+  "CLOAKS01" = "HAB",
+  "CLV7" = "HAB",
+  "CP" = "HAB",
+  "ELEM01" = "HAB",
+  "GH" = "HAB",
+  "HB" = "HAB",
+  "JB" = "HAB",
+  "KEYS01" = "HAB",
+  "KEYS03" = "HAB",
+  "KP01" = "HAB",
+  "LC01" = "HAB",
+  "LPTNT" = "HAB",
+  "LS" = "HAB",
+  "LS2" = "HAB",
+  "LUC01" = "HAB",
+  "RED01" = "HAB",
+  "RODS" = "HAB",
+  "SBMMEL01" = "HAB",
+  "SHADY01" = "HAB",
+  "UBL" = "HAB",
+  "CL-1" = "HAB",
+  "CL-3" = "HAB",
+  "CL-4" = "HAB",
+  "CL-5" = "HAB",
+  "LA-03" = "HAB",
+  "NR-02" = "HAB",
+  "OA-04" = "HAB",
+  "UA-01" = "HAB",
+  "UA-06" = "HAB",
+  "UA-07" = "HAB",
+  "UA-08" = "HAB",
+  "PILLS01" = "HAB", #not in cdx
+  "LAKEPILS01" = "HAB" #not in cdx
+  )
+
+unit_lookup <- c(
+  "Temperature, water" = "deg C", 
+  "Specific conductance" = "mS/cm", 
+  "Resistivity" = "KOhm/cm", 
+  "Salinity" = "ppt", 
+  "Total dissolved solids" = "g/L", 
+  "Dissolved oxygen saturation" = "%",
+  "Dissolved oxygen (DO)" = "mg/L", 
+  "pH" = "None", 
+  "Turbidity" = "NTU",
+  "Oil & Grease (HEM)" = "mg/L",
+  "Nitrate + Nitrite as N" = "mg/L",
+  "Phosphorus, total" = "mg/L",
+  "Total Organic Carbon" = "mg/L")
+
+method_id_lookup <- c(
+  "SM9223B" = "9223-B",
+  "EPA 300.0" = "300.0",
+  "ELISA" = "520060",
+  "QPCR" = "1611",
+  "EPA 1664A" = "1664A",
+  "SM4500-NO3 E" = "4500-NO3(E)",
+  "SM4500-P F" = "4500-P-F",
+  "SM5310C" = "5310-C"
+)
+
+method_context_lookup <- c(
+  "SM9223B" = "APHA",
+  "EPA 300.0" = "USEPA",
+  "ELISA" = "ABRAXIS LLC",
+  "QPCR" = "USEPA",
+  "EPA 1664A" = "USEPA",
+  "SM4500-NO3 E" = "APHA",
+  "SM4500-P F" = "APHA",
+  "SM5310C" = "APHA"
+  
+)
+
+characteristic_lookup <- c(
+  "Oil & Grease (HEM)" = "Oil and Grease",
+  "Phosphorus, total" = "Phosphorus",
+  "Total Organic Carbon" = "Organic carbon",
+  "E. Coli" = "Escherichia coli"
+)
+
+project_sites <- c(
+  "M1",
+  "M2",
+  "M3",
+  "M4",
+  "HSP",
+  "BVSWD1",
+  "NBPRSC",
+  "RSTCC",
+  "BVCL1",
+  "BVRTC1",
+  "BVRTCC",
+  "BVSWDRV",#not in cdx
+  "RVSI1",#not in cdx
+  "RVSI2",#not in cdx
+  "BVCL2",	
+  "BVCL3",	
+  "BVCL5",	
+  "BVCL6",	
+  "BVCL11",	
+  "BVCL12",	
+  "BVCL13",	
+  "BVCL14",	
+  "BVCL15",	
+  "BVCL16",	
+  "BVCL17",	
+  "BVCL18",	
+  "BVCL19",	
+  "BVCL20",
+  "FC1",
+  "FC2",
+  "FC3",#not in cdx
+  "MC1",
+  "MC2",
+  "TC1",
+  "AC1",
+  "AC2",
+  "AC3",
+  "AC4",
+  "MCC1",
+  "KC1",
+  "CC1",
+  "SC1",
+  "SC2",#not in cdx
+  "SHC2",#not in cdx
+  "CC2",#not in cdx
+  "SIEG01",#not in cdx
+  "COOP01",#not in cdx
+  "CLOV01",#not in cdx
+  "DRY01",#not in cdx
+  "COY01",#not in cdx
+  "SCOT01",#not in cdx
+  "AND01",#not in cdx
+  "NFORK01",#not in cdx
+  "LONG01", #not in cdx
+  "PUT01", #not in cdx
+  "MID01", #not in cdx
+  "KC5", #not in cdx
+  "AP01",
+  "BP",
+  "CLOAKS01",
+  "CLV7",
+  "CP",
+  "ELEM01",
+  "GH",
+  "HB",
+  "JB",
+  "KEYS01",
+  "KEYS03",
+  "KP01",
+  "LC01",
+  "LPTNT",
+  "LS",
+  "LS2",
+  "LUC01",
+  "RED01",
+  "RODS",
+  "SBMMEL01",
+  "SHADY01",
+  "UBL",
+  "CL-1",
+  "CL-3",
+  "CL-4",
+  "CL-5",
+  "LA-03",
+  "NR-02",
+  "OA-04",
+  "UA-01",
+  "UA-06",
+  "UA-07",
+  "UA-08",
+  "PILLS01", #not in cdx
+  "LAKEPILS01"  #not in cdx
+)
+```
+
+
+## Load Data
+
+Click on browse and find the appropriate Alpha Lab excel files on your computer. Select the file that needs to be transformed to WQX format. 
+
+We will read the excel files using the function `read_excel()` from the readxl package. The loading file script will also parse the 'SAMPLENAME' column for the sample location in the column.
+
+Once the parsing is finished, the data frame will appear below this chunk.
+
+```{r, echo=FALSE}
+fileInput("alpha_files",
+          "Choose AlphaLab Excel File",
+          multiple = TRUE)
+
+all_files <- reactive({
+  
+  req(input$alpha_files)
+  
+  raw_alpha_lab <-
+    map_df(purrr::map(input$alpha_files$datapath, read_excel), rbind)
+  for (row in 1:nrow(raw_alpha_lab)) {
+    for (n in 1:length(strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]])) {
+      if (strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]][n] %in% project_sites) {
+        raw_alpha_lab$SAMPLENAME[row] = strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]][n]
+      }
+    }
+  }
+  return (raw_alpha_lab)
+})
+
+renderDataTable(
+  all_files(), 
+  options=list(scrollX=T)
+)
+
+```
+
+## QA/QC
+
+Here are a few basic QA/QC processes to make sure that the data is in the right format:
+
+
+```{r}
+renderUI({
+  HTML(
+    paste(
+      "<ul><li> Are all values in the 'Project' column 'Storm Water Monitoring': ",
+      "<b>",
+      all(all_files()$PROJECT == "Storm Water Monitoring"),
+      "</b></li></ul>"
+    )
+  )
+})
+
+#Check if SAMPLENAME is N
+renderUI({
+  HTML(
+    paste(
+      "<ul><li> Are there any NA values in the 'SAMPLENAME' column: ",
+      "<b>",
+      any(is.na(all_files()$SAMPLENAME)),
+      "</b></li></ul>"
+    )
+  )
+})
+
+#Check for all unique analytes
+renderUI({
+  HTML(
+    paste(
+      "<ul><li> Unique water quality analytes collected in the 'ANALYTE' column: ",
+      "<b>",
+      paste(unique(all_files()$ANALYTE, "\n")),
+      "</b>",
+      "</ul></li>"
+    )
+  )
+})
+
+```
+
+## Make Activity Function
+
+Before transforming the results data into WQX format, we will create a function that will help to make the 'Activity ID' column of the WQX file. To make the Activity ID, it needs location ID, date, activity type, equipment name, depth, time and equipment comment. Run this function with a `mutate()` statement to create the 'Activity ID.'
+
+
+```{r}
+make_activity_id <-
+  function(location_id,
+           date,
+           activity_type,
+           equipment_name,
+           depth = NULL,
+           time = NULL,
+           equipment_comment = NULL) {
+    YYYYMMDD <- gsub('/', '', date)
+    activity <- ifelse(activity_type == "Sample-Routine", "SR", "FM")
+    equipment <- case_when(
+      equipment_name == "Probe/Sensor" ~ "PS",
+      equipment_name == "Water Bottle" ~ "WB",
+      TRUE ~ NA_character_
+    )
+    hhmm <- gsub(':', '', time)
+    equipment_comment <- case_when(
+      equipment_comment == "Hydrolab Surveyor DS5 Multiprobe" ~ "Hydro",
+      equipment_comment == "AlgaeChek Ultra Fluorometer" ~ "Algae",
+      TRUE ~ NA_character_
+    )
+    depth <- ifelse(is.na(depth), "", depth)
+    paste(location_id,
+          YYYYMMDD,
+          hhmm,
+          activity,
+          equipment,
+          depth,
+          equipment_comment,
+          sep = ":")
+  }
+```
+
+## Data Transformation
+
+To transform the data into WQX format, we will create columns based on the WQX schema using the `mutate()` function from the tidyverse package. We will then drop the columns we do not need and reorder the data.
+
+One crucial function is the `casewhen()` function. This function lets the user create multiple conditions; if this condition is met, the column will be a specified value. If it is not met, it is a different value.
+
+For example for the following code: `all_files <- all_files() |> mutate("Characteristic Name" = case_when( ANALYTE == "E. Coli" ~ "Escherichia coli",` `ANALYTE == "Oil & Grease (HEM)" ~ "Oil and Grease", ANALYTE == "Phosphorus, total" ~ "Phosphorus",` `ANALYTE == "Total Organic Carbon" ~ "Organic carbon", TRUE ~ ANALYTE)`
+
+It is paraphrased as we create a new column named 'Characteristic Name' in the data frame all_files. If the cell value from the 'ANALYTE' column from all_files is E. Coli (the condition), the corresponding cell value in the 'Characteristic Name' column will be "Escherichia coli". If the cell value from the 'ANALYTE' column is "Oil & Grease (HEM)," the 'Characteristic name' column will be "Oil and Grease ."If the cell value from the 'ANALYTE' column is "Total Organic Carbon," the 'Characteristic name' column will be "Organic carbon ." And if the 'ANALYTE' column does not match any of these conditions, fill the rest of the 'Characteristic Name' column with values from the 'ANALYTE' column.
+
+The `ifelse()` function works similarly, except it only takes in one condition. If that condition is met, the new column will be a new value. If it is not met, it will be another value.
+
+
+
+```{r}
+partial_clean_alpha_lab <- reactive({
+  req(input$alpha_files)
+  
+  all_files <- all_files() |>
+    mutate(
+      "Project ID" = "SW",
+      "Monitoring Location ID" = SAMPLENAME,
+      "Activity ID User Supplied (PARENTs)" = NA,
+      "Activity Type" = "Sample-Routine",
+      "Activity Media Name" = MATRIX,
+      "Activity Start Date" = format(mdy_hms(SAMPDATE), "%m/%d/%Y"),
+      "Activity Start Time" = format(mdy_hms(SAMPDATE), "%H:%M"),
+      "Activity Start Time Zone" = "PST",
+      "Activity Depth/Height Measure" = "0.152",
+      "Activity Depth/Height Unit" = "m",
+      "Sample Collection Method ID" = "BVR SWQAPP",
+      "Sample Collection Method Context" = "CA_BVR",
+      "Sample Collection Equipment Name" = "Water Bottle",
+      "Sample Collection Equipment Comment" = NA,
+      "Characteristic Name" = case_when(
+        ANALYTE == "E. Coli" ~ "Escherichia coli",
+        ANALYTE == "Oil & Grease (HEM)" ~ "Oil and Grease",
+        ANALYTE == "Phosphorus, total" ~ "Phosphorus",
+        ANALYTE == "Total Organic Carbon" ~ "Organic carbon",
+        TRUE ~ ANALYTE
+      ),
+      "Characteristic Name User Supplied" = NA,
+      "Method Speciation" = case_when(
+        ANALYTE == "Nitrate as N" ~ "as N",
+        ANALYTE == "Phosphorus, total" ~ "as P",
+        ANALYTE == "Nitrate + Nitrite as N" ~ "as N",
+        TRUE ~ NA_character_
+      ),
+      "Result Detection Condition" = case_when(
+        Result == "ND" ~ "Not Reported",
+        Result == "Absent" ~ "Not Present",
+        Result == "Present" ~ "Detected Not Quantified",
+        TRUE ~ NA_character_
+      ),
+      "Result Value" = ifelse(
+        Result == "Absent" |
+          Result == "ND" | Result == "Present",
+        NA_character_,
+        Result
+      ),
+      "Result Unit" = ifelse(UNITS == ".", NA_character_, UNITS),
+      "Result Measure Qualifier" = NA,
+      "Result Sample Fraction" = "Total",
+      "Result Status ID" = "Final",
+      "ResultTemperatureBasis" = NA,
+      "Statistical Base Code" = NA,
+      "ResultTimeBasis" = NA,
+      "Result Value Type" = ifelse(is.na(Result), NA_character_, "Actual"),
+      "Result Analytical Method ID" = ifelse(is.na(METHODNAME), NA_character_, method_id_lookup[METHODNAME]),
+      "Activity ID (CHILD-subset)" = make_activity_id(
+        location_id = `Monitoring Location ID`,
+        date = `Activity Start Date`,
+        time = `Activity Start Time`,
+        activity_type = `Activity Type`,
+        equipment_name = `Sample Collection Equipment Name`,
+        depth = `Activity Depth/Height Measure`
+      ),
+      "Result Analytical Method Context" = method_context_lookup[METHODNAME],
+      "Analysis Start Date" = format(mdy_hms(ANADATE), "%m/%d/%Y"),
+      "Result Detection/Quantitation Limit Type" = ifelse(DL == "NA", NA_character_, "Method Detection Level"),
+      "Result Detection/Quantitation Limit Measure" = ifelse(DL == "NA", NA_character_, DL),
+      "Result Detection/Quantitation Limit Unit" = ifelse(UNITS == ".", NA_character_, UNITS),
+      "Result Comment" = NA
+      
+    ) %>%
+    select(-c(0:48)) %>%
+    relocate("Activity ID (CHILD-subset)", .before = "Activity ID User Supplied (PARENTs)")
+})
+
+```
+
+One last step that we need to do before getting a WQX ready dataset is to make sure that both 'Result Unit' and 'Result Analytical Method Context' column is empty if the 'Result Analytical Method ID' and 'Result Unit' columns are respectively empty. We also have to make sure that the columns are in the right order (using the function `relocate()` to move the columns).
+
+The rendered table shows the WQX ready dataframe.
+
+```{r}
+clean_alpha_lab <- reactive({
+  req(input$alpha_files)
+  
+  partial_clean_alpha_lab <-  partial_clean_alpha_lab() |>
+    mutate(
+      "Result Analytical Method Context" = ifelse(
+        is.na(partial_clean_alpha_lab()$`Result Analytical Method ID`),
+        NA_character_,
+        partial_clean_alpha_lab()$`Result Analytical Method Context`
+      ),
+      "Result Unit" = ifelse(
+        is.na(partial_clean_alpha_lab()$`Result Value`),
+        NA_character_,
+        partial_clean_alpha_lab()$`Result Unit`
+      )
+    ) |>
+    relocate("Result Analytical Method Context", .before = "Analysis Start Date")
+})
+
+
+
+renderDataTable(
+  clean_alpha_lab(),
+  options=list(scrollX=T)
+)
+
+```
+
+## Data Download
+
+Lastly, we export the data to a CSV file in the data folder. Cells with NAs are saved as blank cells. 
+
+Click on the Download button for the WQX-ready CSV file. 
+
+```{r, echo=FALSE}
+unique_signature <- format(lubridate::now(), "%Y%m%d_%H%M%S")
+
+downloadHandler(
+  filename = function() {
+    paste("alpha-lab-data-", unique_signature, ".csv", sep = "")
+  },
+  content = function(file) {
+    write.csv(clean_alpha_lab(),
+              file,
+              na = '',
+              row.names = FALSE)
+  }
+)
+
+
+```
+
+## Data Upload To CDX-WQX
+
+The 'Upload WQX File Path' is automatically populated with the location of the downloaded CSV file from the previous step. Please double-check and make sure the file is in the default Downloads folder. If it is not, enter the full location of the file.
+
+Use the 'Upload To WQX' button below to directly upload the previously downloaded data to CDX. It will take a few seconds for the upload status to show up. Once it does, you may close the markdown. CDX will send an email to the user with the final status once the upload finishes.
+
+```{r}
+path_to_download <- file.path(Sys.getenv("USERPROFILE"), "Downloads")
+file_path <-
+  str_replace_all(
+    paste(
+      path_to_download,
+      "/alpha-lab-data-",
+      unique_signature,
+      ".csv",
+      sep = ""
+    ),
+    "\\\\",
+    "/"
+  )
+
+textInput("wqx_upload", "Upload WQX File Path", value = file_path)
+actionButton("button", "Upload To WQX")
+
+conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                            tags$div(HTML("<b> Starting WQX upload. Please wait for the upload status from CDX...</b>"),id="loadmessage"))
+
+status <- eventReactive(input$button, {
+  API_KEY = Sys.getenv("WQX_API_KEY")
+  USER_ID = "INIGOPENG"
+  FILE_PATH = input$wqx_upload
+  FILE_NAME =  paste("alpha-lab-data-", unique_signature, ".csv", sep = "")
+  config_id = 8030
+  session <- cdx(USER_ID, API_KEY, FILE_PATH, FILE_NAME)
+  file_id <- cdx_upload(session = session)
+  dataset_id <-
+    cdx_import(
+      session = session,
+      file_id = file_id,
+      config_id = config_id,
+      params = c("newOrExistingData", "0")
+    )
+  # 
+  status <- cdx_get_status(session, dataset_id)
+  
+  return(status$StatusName)
+
+})
+
+
+renderUI({
+  HTML(
+    paste("Upload Status:",
+          status(),
+          "<br>"),
+    "You may now close the document. Check email for the final upload confirmation from CDX."
+  )
+})
+
+```
+
+
+
+
+

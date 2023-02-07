@@ -1,0 +1,298 @@
+---
+title: "WQX Upload QC"
+author: "Inigo Peng"
+date: "2022-10-24"
+output: html_document
+---
+# WQX Data QC
+
+## Description of Data
+
+The data we are using to go through the QC process is the cleaned WQX dataset from Alpha Lab, Bend Genetics, and Hydro Lab.
+
+**Timeframe:** 2020
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE
+)
+
+library(dplyr)
+library(janitor)
+library(readxl)
+library(stringr)
+library(lubridate)
+library(readr)
+library(ggplot2)
+```
+
+## Access Lab Data
+
+We will first read in the wqx ready lab data. We will bind it into one data frame so we only have to perform the qc procedure once. We will use the read_csv function. We will then bind the three data frames into one large data frame called combined_lab_data.
+
+```{r}
+alpha_lab_wqx <- read_csv("data/alpha_lab_wqx.csv", col_types = cols(.default = "c")) 
+
+bend_wqx <- read_csv("data/bend_wqx.csv", col_types = cols(.default = "c")) 
+
+hydrolab_wqx <- read_csv("data/hydrolab_wqx.csv", col_types = cols(.default = "c")) 
+```
+```{r}
+combined_lab_data <- bind_rows(alpha_lab_wqx, bend_wqx, hydrolab_wqx) |> glimpse()
+```
+
+## Data transformations
+
+Right now, the data type of all of the columns are "characters". We need to change the columns "Activity Depth/Height Measure", "Result Value", and "Result Detection/Quantitation Limit Measure" to numeric. However we cannot convert it directly because one of the value in "Result Value" is "present". That is not a value we want so we have to filter it out. 
+
+```{r}
+combined_lab_data <- combined_lab_data |> 
+  mutate(`Activity Depth/Height Measure` = as.numeric(`Activity Depth/Height Measure`),
+         `Result Value` = as.numeric(`Result Value`),
+         `Result Detection/Quantitation Limit Measure` = as.numeric(`Result Detection/Quantitation Limit Measure`)) |> glimpse()
+
+```
+
+## Explore Numeric Variables
+
+Now we explore these numeric values. 
+
+```{r}
+combined_lab_data |> select_if(is.numeric) |> colnames()
+```
+### Variable: `Activity Depth/Height Measure`, `Result Value`, `Result Detection/Quantitation Limit Measure`
+
+The summary function produces summaries of the results such as min, max. Values that are not in the normal range could be spotted.
+
+```{r}
+summary(combined_lab_data$`Activity Depth/Height Measure`)
+summary(combined_lab_data$`Result Value`)
+summary(combined_lab_data$`Result Detection/Quantitation Limit Measure`)
+
+```
+
+
+
+## Explore water quality variables: {.tabset}
+
+```{r}
+unique(combined_lab_data$`Characteristic Name`)
+```
+
+### Variable: `Result Value`
+
+**Plotting result value per water quality variable 
+
+```{r}
+combined_lab_data |> 
+  ggplot(aes(x = `Result Value`,  y = `Characteristic Name`)) +
+  geom_point(color = "blue") +
+  labs(x = "Result Value",
+       y = "Characteristic Name") +
+  theme_minimal()
+```
+
+We could filter our data based on each water quality variable to get a more detailed look at each variable.
+
+### Water Quality Characteristic: Turbidity
+```{r}
+combined_lab_data |> 
+  filter(`Characteristic Name` == "Turbidity") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+```
+```{r}
+summary(combined_lab_data |> 
+          filter(`Characteristic Name` == "Turbidity") |> 
+        select(`Result Value`))
+```
+
+
+### Water Quality Characteristic: Total Dissolved Solids
+```{r}
+combined_lab_data |> 
+  filter(`Characteristic Name` == "Total dissolved solids") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(combined_lab_data |> 
+          filter(`Characteristic Name` == "Total dissolved solids") |> 
+        select(`Result Value`))
+```
+
+### Water Quality Characteristic: Nitrate as N
+```{r}
+combined_lab_data |> 
+  filter(`Characteristic Name` == "Nitrate as N") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(combined_lab_data |> 
+          filter(`Characteristic Name` == "Nitrate as N") |> 
+        select(`Result Value`))
+```
+
+### Water Quality Characteristic: Microcystin/nodularin genes mcyE/ndaF
+```{r}
+combined_lab_data |> 
+  filter(`Characteristic Name` == "Microcystin/nodularin genes mcyE/ndaF") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(combined_lab_data |> 
+          filter(`Characteristic Name` == "Microcystin/nodularin genes mcyE/ndaF") |> 
+        select(`Result Value`))
+```
+
+### Water Quality Characteristic: Microcystin
+```{r}
+combined_lab_data |> 
+  filter(`Characteristic Name` == "Microcystin") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(combined_lab_data |> 
+          filter(`Characteristic Name` == "Microcystin") |> 
+        select(`Result Value`))
+```
+
+### Water Quality Characteristic: Temperature, water
+```{r}
+combined_lab_data |> 
+  filter(`Characteristic Name` == "Temperature, water") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(combined_lab_data |> 
+          filter(`Characteristic Name` == "Temperature, water") |> 
+        select(`Result Value`))
+```
+
+### Water Quality Characteristic: Specific conductance
+```{r}
+combined_lab_data |> 
+  filter(`Characteristic Name` == "Specific conductance") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(combined_lab_data |> 
+          filter(`Characteristic Name` == "Specific conductance") |> 
+        select(`Result Value`))
+```
+
+### Water Quality Characteristic: Resistivity
+```{r}
+combined_lab_data |> 
+  filter(`Characteristic Name` == "Resistivity") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(combined_lab_data |> 
+          filter(`Characteristic Name` == "Resistivity") |> 
+        select(`Result Value`))
+```
+
+### Water Quality Characteristic: Salinity
+```{r}
+combined_lab_data |> 
+  filter(`Characteristic Name` == "Salinity") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(combined_lab_data |> 
+          filter(`Characteristic Name` == "Salinity") |> 
+        select(`Result Value`))
+```
+
+### Water Quality Characteristic: Dissolved oxygen saturation
+```{r}
+combined_lab_data |> 
+  filter(`Characteristic Name` == "Dissolved oxygen saturation") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(combined_lab_data |> 
+          filter(`Characteristic Name` == "Dissolved oxygen saturation") |> 
+        select(`Result Value`))
+```
+
+### Water Quality Characteristic: Dissolved oxygen (DO)
+```{r}
+combined_lab_data |> 
+  filter(`Characteristic Name` == "Dissolved oxygen (DO)") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(combined_lab_data |> 
+          filter(`Characteristic Name` == "Dissolved oxygen (DO)") |> 
+        select(`Result Value`))
+```
+
+### Water Quality Characteristic: pH
+```{r}
+combined_lab_data |> 
+  filter(`Characteristic Name` == "pH") |> 
+  ggplot(aes(x = `Characteristic Name`, y = `Result Value`)) +
+  geom_point(color = "blue") +
+  labs(y = "Result Value",
+       x = "Characteristic Name") +
+  theme_minimal()
+
+```
+```{r}
+summary(combined_lab_data |> 
+          filter(`Characteristic Name` == "pH") |> 
+        select(`Result Value`))
+```

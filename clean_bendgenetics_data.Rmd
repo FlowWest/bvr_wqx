@@ -1,0 +1,562 @@
+---
+title: "Bend Genetics Data Cleaning and Upload"
+author: "Inigo Peng"
+date: "2022-10-12"
+runtime: shiny
+output: 
+  html_document:
+    code_folding: hide
+---
+## Description of Data
+
+**Collection method:**
+
+Hydrolab DS5 Multiprobe, Sampling Bottles
+
+**Raw File format:**
+
+Bend Genetics CSV lab report
+
+**Monitoring (Project ID)**
+
+Clear Lake Harmful Algal Bloom (HAB), Tap Water Sampling (CalWATCH).
+
+**WQX submittal required?**
+
+Clear Lake Harmful Algal Bloom: YES; Tap Water Sampling: NO.
+
+**Note**
+
+This script is a dynamic markdown where the user can interact with the document. To run the document, click on "Run Document" to render it in HTML format. 
+
+Usually, to run a markdown script, the user must ensure the project is set to the appropriate working directory. However, since this is an interactive markdown, we do not have to worry about that. The only files we need are the Alpha Lab excel files that need to get updated.
+
+In these markdown documents, click on the "code" button on the right to see the code used to process the data. If you have questions about any of the functions used, type in "? " followed by the function (eg. `?mutate`) in the console,  or google search the function to see detailed documentation.  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(readxl)
+library(stringr)
+library(lubridate)
+library(readr)
+library(wqxWeb)
+library(utf8)
+```
+
+```{r, include=FALSE}
+project_id_lookup <- c(
+  # CLM(Clear Lake),MS(Marina),HAB,BVSHORE(Big Valley shoreline sites: M1 or BVCL6),CS(Creek Sampling),SW(Storm Water)
+  "M1" = "MS",
+  "M2" = "MS",
+  "M3" = "MS",
+  "M4" = "MS",
+  "HSP" = "SW",
+  "BVSWD1" = "SW",
+  "NBPRSC" = "SW",
+  "RSTCC" = "SW",
+  "BVCL1" = "SW",
+  "BVRTC1" = "SW",
+  "BVRTCC" = "SW",
+  "BVSWDRV" = "SW",#not in cdx
+  "RVSI1" = "SW",#not in cdx
+  "RVSI2" = "SW",#not in cdx
+  "BVCL2" = "CLM",	
+  "BVCL3" = "CLM",	
+  "BVCL5" = "CLM",	
+  "BVCL6" = "CLM",	
+  "BVCL11" = "CLM",	
+  "BVCL12" = "CLM",	
+  "BVCL13" = "CLM",	
+  "BVCL14" = "CLM",	
+  "BVCL15" = "CLM",	
+  "BVCL16" = "CLM",	
+  "BVCL17" = "CLM",	
+  "BVCL18" = "CLM",	
+  "BVCL19" = "CLM",	
+  "BVCL20" = "CLM",
+  "FC1" = "CS", 
+  "FC2" = "CS",
+  "FC3" = "CS",#not in cdx
+  "MC1" = "CS",
+  "MC2" = "CS",
+  "TC1" = "CS",
+  "AC1" = "CS",
+  "AC2" = "CS",
+  "AC3" = "CS",
+  "AC4" = "CS",
+  "MCC1" = "CS",
+  "KC1" = "CS",
+  "CC1" = "CS",
+  "SC1" = "CS",
+  "SC2" = "CS",#not in cdx
+  "SHC2"= "CS",#not in cdx
+  "CC2" = "CS",#not in cdx
+  "SIEG01" = "CS",#not in cdx
+  "COOP01" = "CS",#not in cdx
+  "CLOV01" = "CS",#not in cdx
+  "DRY01" = "CS",#not in cdx
+  "COY01" = "CS",#not in cdx
+  "SCOT01"= "CS",#not in cdx
+  "AND01" = "CS",#not in cdx
+  "NFORK01" = "CS",#not in cdx
+  "LONG01" = "CS", #not in cdx
+  "PUT01" = "CS", #not in cdx
+  "MID01"= "CS", #not in cdx
+  "KC5"= "CS", #not in cdx
+  "AP01" = "HAB",
+  "BP" = "HAB",
+  "CLOAKS01" = "HAB",
+  "CLV7" = "HAB",
+  "CP" = "HAB",
+  "ELEM01" = "HAB",
+  "GH" = "HAB",
+  "HB" = "HAB",
+  "JB" = "HAB",
+  "KEYS01" = "HAB",
+  "KEYS03" = "HAB",
+  "KP01" = "HAB",
+  "LC01" = "HAB",
+  "LPTNT" = "HAB",
+  "LS" = "HAB",
+  "LS2" = "HAB",
+  "LUC01" = "HAB",
+  "RED01" = "HAB",
+  "RODS" = "HAB",
+  "SBMMEL01" = "HAB",
+  "SHADY01" = "HAB",
+  "UBL" = "HAB",
+  "CL-1" = "HAB",
+  "CL-3" = "HAB",
+  "CL-4" = "HAB",
+  "CL-5" = "HAB",
+  "LA-03" = "HAB",
+  "NR-02" = "HAB",
+  "OA-04" = "HAB",
+  "UA-01" = "HAB",
+  "UA-06" = "HAB",
+  "UA-07" = "HAB",
+  "UA-08" = "HAB",
+  "PILLS01" = "HAB", #not in cdx
+  "LAKEPILS01" = "HAB" #not in cdx
+  )
+
+unit_lookup <- c(
+  "Temperature, water" = "deg C", 
+  "Specific conductance" = "mS/cm", 
+  "Resistivity" = "KOhm/cm", 
+  "Salinity" = "ppt", 
+  "Total dissolved solids" = "g/L", 
+  "Dissolved oxygen saturation" = "%",
+  "Dissolved oxygen (DO)" = "mg/L", 
+  "pH" = "None", 
+  "Turbidity" = "NTU",
+  "Oil & Grease (HEM)" = "mg/L",
+  "Nitrate + Nitrite as N" = "mg/L",
+  "Phosphorus, total" = "mg/L",
+  "Total Organic Carbon" = "mg/L")
+
+method_id_lookup <- c(
+  "SM9223B" = "9223-B",
+  "EPA 300.0" = "300.0",
+  "ELISA" = "520060",
+  "QPCR" = "1611",
+  "EPA 1664A" = "1664A",
+  "SM4500-NO3 E" = "4500-NO3(E)",
+  "SM4500-P F" = "4500-P-F",
+  "SM5310C" = "5310-C"
+)
+
+method_context_lookup <- c(
+  "SM9223B" = "APHA",
+  "EPA 300.0" = "USEPA",
+  "ELISA" = "ABRAXIS LLC",
+  "QPCR" = "USEPA",
+  "EPA 1664A" = "USEPA",
+  "SM4500-NO3 E" = "APHA",
+  "SM4500-P F" = "APHA",
+  "SM5310C" = "APHA"
+  
+)
+
+characteristic_lookup <- c(
+  "Oil & Grease (HEM)" = "Oil and Grease",
+  "Phosphorus, total" = "Phosphorus",
+  "Total Organic Carbon" = "Organic carbon",
+  "E. Coli" = "Escherichia coli"
+)
+
+project_sites <- c(
+  "M1",
+  "M2",
+  "M3",
+  "M4",
+  "HSP",
+  "BVSWD1",
+  "NBPRSC",
+  "RSTCC",
+  "BVCL1",
+  "BVRTC1",
+  "BVRTCC",
+  "BVSWDRV",#not in cdx
+  "RVSI1",#not in cdx
+  "RVSI2",#not in cdx
+  "BVCL2",	
+  "BVCL3",	
+  "BVCL5",	
+  "BVCL6",	
+  "BVCL11",	
+  "BVCL12",	
+  "BVCL13",	
+  "BVCL14",	
+  "BVCL15",	
+  "BVCL16",	
+  "BVCL17",	
+  "BVCL18",	
+  "BVCL19",	
+  "BVCL20",
+  "FC1",
+  "FC2",
+  "FC3",#not in cdx
+  "MC1",
+  "MC2",
+  "TC1",
+  "AC1",
+  "AC2",
+  "AC3",
+  "AC4",
+  "MCC1",
+  "KC1",
+  "CC1",
+  "SC1",
+  "SC2",#not in cdx
+  "SHC2",#not in cdx
+  "CC2",#not in cdx
+  "SIEG01",#not in cdx
+  "COOP01",#not in cdx
+  "CLOV01",#not in cdx
+  "DRY01",#not in cdx
+  "COY01",#not in cdx
+  "SCOT01",#not in cdx
+  "AND01",#not in cdx
+  "NFORK01",#not in cdx
+  "LONG01", #not in cdx
+  "PUT01", #not in cdx
+  "MID01", #not in cdx
+  "KC5", #not in cdx
+  "AP01",
+  "BP",
+  "CLOAKS01",
+  "CLV7",
+  "CP",
+  "ELEM01",
+  "GH",
+  "HB",
+  "JB",
+  "KEYS01",
+  "KEYS03",
+  "KP01",
+  "LC01",
+  "LPTNT",
+  "LS",
+  "LS2",
+  "LUC01",
+  "RED01",
+  "RODS",
+  "SBMMEL01",
+  "SHADY01",
+  "UBL",
+  "CL-1",
+  "CL-3",
+  "CL-4",
+  "CL-5",
+  "LA-03",
+  "NR-02",
+  "OA-04",
+  "UA-01",
+  "UA-06",
+  "UA-07",
+  "UA-08",
+  "PILLS01", #not in cdx
+  "LAKEPILS01"  #not in cdx
+)
+```
+
+## Load Data
+
+Bend Genetic lab report result comes in two data frames (Analytical Report For Samples and Sample Results). We need to parse them from the csv file. We will first read in the file, skipping the first 5 lines of the header and delete the empty columns and rows.
+
+To parse the Analytical Report and Sample Results data frame, we parse the data based on the rows that are NA. For both data frames, we know that the data frame ends after a specific Sample ID. The next row is NA. So we parse a data frame where it ends before the row that is NA.
+
+To perform this parse, we use the square bracket to get the position of the elements from the data frame and the function `which()`. This function returns the position of an element based on the condition.
+
+```{r, echo=FALSE}
+fileInput("bend_files",
+          "Choose Bend Genetics CSV File",
+          multiple = FALSE)
+
+
+all_files <- reactive({
+  req(input$bend_files)
+  
+  bend_raw <- read_csv(input$bend_files$datapath, skip = 7)  |>
+    select(-'...8')
+  
+  analytical_report_for_samples <-
+    bend_raw[1:which(is.na(bend_raw$`Sample ID`))[1] - 1,]
+  
+  bend_raw_na <- bend_raw |>
+    filter(!if_all(everything(), is.na))
+  
+  sample_results <-
+    bend_raw_na[(which(is.na(bend_raw_na$`Sample ID`))[1:4][4] + 3):(which(is.na(bend_raw_na$`Sample ID`))[5] - 1),] |>
+    rename(
+      Method = Location,
+      Target = `Date Collected`,
+      Result = `Date Received`,
+      `Quantitation Limit` = Matrix,
+      Units = Preserved,
+      Notes = BG_ID
+    ) |> 
+    mutate_if(is.character, utf8::utf8_encode)
+  
+  
+  bend_full_df <-
+    left_join(analytical_report_for_samples, sample_results) |> 
+    filter(!is.na(Target))
+    # mutate(Units = ifelse(Units == "ng/g", ""))
+    
+    return(bend_full_df)
+  
+})
+
+renderDataTable(
+  all_files(), 
+  options=list(scrollX=T)
+)
+
+```
+
+## QA/QC
+
+Here are a few basic QA/QC processes to make sure that the data is in the right format.
+
+```{r}
+renderUI({
+  HTML(
+    paste(
+      "<ul><li> Are there any NA values in the 'Target' column: ",
+      "<b>",
+      any(is.na(all_files()$Target)),
+      "</b></li></ul>"
+    )
+  )
+})
+
+renderUI({
+  HTML(
+    paste(
+      "<ul><li> Unique toxigeneic cyanobacteria collected in the 'Target' column: ",
+      "<b>",
+      paste(unique(all_files()$Target, "\n")),
+      "</b>",
+      "</ul></li>"
+    )
+  )
+})
+```
+
+## Make Activity Function
+
+Before transforming the results data into WQX format, we will create a function that will help to make the 'Activity ID' column of the WQX file. To make the Activity ID, it needs location ID, date, activity type, equipment name, depth, time and equipment comment. Run this function with a `mutate()` statement to create the 'Activity ID.'
+
+```{r}
+make_activity_id <- function(location_id, date, activity_type, equipment_name, depth = NULL, time = NULL) {
+  YYYYMMDD <- gsub('/', '', date)
+  activity <- ifelse(activity_type == "Sample-Routine", "SR", "FM")
+  equipment <- case_when(
+    equipment_name == "Probe/Sensor" ~ "PS",
+    equipment_name == "Water Bottle" ~ "WB",
+    TRUE ~ NA_character_)
+  hhmm <- gsub(':', '', time)
+  equipment_comment <- case_when(
+    equipment_name == "Hydrolab Surveyor DS5 Multiprobe" ~ "Hydro",
+    equipment_name == "AlgaeChek Ultra Fluorometer" ~ "Algae", 
+    TRUE ~ "")
+  depth <- ifelse(is.na(depth), "", depth)
+  paste(location_id, YYYYMMDD, hhmm,activity, equipment, depth, equipment_comment, sep = ":")
+}
+```
+
+## Data Transformation
+
+To transform the data into WQX format, we will create columns based on the WQX schema using the `mutate()` function from the tidyverse package. We will then drop the columns we do not need and reorder the data.
+
+
+```{r}
+clean_bend <- reactive({
+  
+  all_files <- all_files() |>
+  mutate("Project ID" = "HAB",
+         # Not all locations are recorded in master monitoring plan:
+        # Benthic LUC01, OA04, LA03
+         "Monitoring Location ID" = Location,
+         "Activity ID User Supplied (PARENTs)" = NA,
+         "Activity Type" = "Sample-Routine",
+         "Activity Media Name" = Matrix,
+        # use the lubridate package function mdy_hm()to format date in m/d/y
+         "Activity Start Date" = format(mdy_hm(`Date Collected`), "%m/%d/%Y"),
+        # use the lubridate package function mdy_hm() to formate time in HH:MM
+         "Activity Start Time" = format(mdy_hm(`Date Collected`), "%H:%M"),
+         "Activity Start Time Zone" = "PST",
+        # Need activity depth/height, unit
+         "Activity Depth/Height Measure" = NA,
+         "Activity Depth/Height Unit" = NA,
+        # Confirm Sample Collection method id is BVR SWQAPP
+         "Sample Collection Method ID" = "BVR SWQAPP",
+         "Sample Collection Method Context" = "CA_BVR",
+        # Confirm Equipment for bend is Water Bottle
+         "Sample Collection Equipment Name" = "Water Bottle",
+         "Sample Collection Equipment Comment" = NA,
+         "Characteristic Name" = ifelse(Target == "Microcystin/Nod.", "Microcystin/nodularin genes mcyE/ndaF", Target),
+         "Characteristic Name User Supplied" = NA,
+         "Method Speciation" = NA,
+         "Result Detection Condition" = ifelse(Result == "ND", "Not Detected", NA),
+         "Result Value" = ifelse(Result == "ND", NA, Result),
+         "Result Unit" = ifelse(Result == "ND", NA, Units),
+         "Result Measure Qualifier" = NA,
+         "Result Sample Fraction" = "Total",
+         "Result Status ID" = "Final",
+         "ResultTemperatureBasis" = NA,
+         "Statistical Base Code" = NA,
+         "ResultTimeBasis" = NA,
+         "Result Value Type" = "Actual",
+        # method_lookup is in the lookup table. It points the methods to their IDs.
+         "Result Analytical Method ID" = method_id_lookup[Method],
+        # method_context_lookup is in the lookup table. It points the method to their method context.
+         "Result Analytical Method Context" = method_context_lookup[Method],
+         "Analysis Start Date" = format(mdy_hm(`Date Received`), "%m/%d/%Y"),
+         "Result Detection/Quantitation Limit Type" = "Practical Quantitation Limit",
+         "Result Detection/Quantitation Limit Measure" = `Quantitation Limit`,
+         "Result Detection/Quantitation Limit Unit" = Units,
+         "Result Comment" = Notes,
+         "Activity ID (CHILD-subset)" = make_activity_id(location_id = Location,
+                                                        date = `Activity Start Date`,
+                                                        time = `Activity Start Time`,
+                                                        activity_type = `Activity Type`,
+                                                        equipment_name = `Sample Collection Equipment Name`,
+                                                        depth = `Activity Depth/Height Measure`)
+  ) |>
+  relocate("Activity ID (CHILD-subset)", .before = "Activity ID User Supplied (PARENTs)") |>
+  select(-c(0:13))
+})
+
+clean_bend_wqx <- reactive({
+  clean_bend <- clean_bend() |>
+    mutate(
+      "Result Unit" = ifelse(
+        clean_bend()$`Result Unit` == "µg/L",
+        "ug/L",
+        clean_bend()$`Result Unit`
+      ),
+      "Result Detection/Quantitation Limit Unit" = ifelse(
+        clean_bend()$`Result Detection/Quantitation Limit Unit` == "µg/L",
+        "ug/L",
+        clean_bend()$`Result Detection/Quantitation Limit Unit`
+      )
+    )
+})
+renderDataTable(
+  clean_bend_wqx(),
+  options=list(scrollX=T)
+)
+```
+
+## Data Download
+
+Lastly, we export the data to a CSV file in the data folder. Cells with NAs are saved as blank cells. 
+
+Click on the Download button for the WQX-ready CSV file. 
+
+```{r, echo=FALSE}
+unique_signature <- format(lubridate::now(), "%Y%m%d_%H%M%S")
+
+downloadHandler(
+  filename = function() {
+    paste("bend-lab-data-", unique_signature, ".csv", sep = "")
+  },
+  content = function(file) {
+    write.csv(clean_bend_wqx(),
+              file,
+              na = '',
+              row.names = FALSE)
+  }
+)
+
+
+```
+
+## Data Upload To CDX-WQX
+
+The 'Upload WQX File Path' is automatically populated with the location of the downloaded CSV file from the previous step. Please double-check and make sure the file is in the default Downloads folder. If it is not, enter the full location of the file.
+
+Use the 'Upload To WQX' button below to directly upload the previously downloaded data to CDX. It will take a few seconds for the upload status to show up. Once it does, you may close the markdown. CDX will send an email to the user with the final status once the upload finishes.
+
+```{r}
+path_to_download <- file.path(Sys.getenv("USERPROFILE"), "Downloads")
+file_path <-
+  str_replace_all(
+    paste(
+      path_to_download,
+      "/bend-lab-data-",
+      unique_signature,
+      ".csv",
+      sep = ""
+    ),
+    "\\\\",
+    "/"
+  )
+
+textInput("wqx_upload", "Upload WQX File Path", value = file_path)
+actionButton("button", "Upload To WQX")
+
+conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                            tags$div(HTML("<b> Starting WQX upload. Please wait for the upload status from CDX...</b>"),id="loadmessage"))
+
+status <- eventReactive(input$button, {
+  
+  API_KEY = Sys.getenv("WQX_API_KEY")
+  USER_ID = "INIGOPENG"
+  FILE_PATH = input$wqx_upload
+  FILE_NAME =  paste("bend-lab-data-", unique_signature, ".csv", sep = "")
+  config_id = 8030
+  session <- cdx(USER_ID, API_KEY, FILE_PATH, FILE_NAME)
+  file_id <- cdx_upload(session = session)
+  dataset_id <-
+  cdx_import(
+    session = session,
+    file_id = file_id,
+    config_id = config_id,
+    params = c("newOrExistingData", "0")
+  )
+
+  status <- cdx_get_status(session, dataset_id)
+  # return(file_id)  
+  return(status$StatusName)
+
+})
+
+
+renderUI({
+  HTML(
+    paste("Upload Status:",
+          status(),
+          "<br>"),
+    "You may now close the document. Check email for the final upload confirmation from CDX."
+  )
+})
+
+```
+
+
+

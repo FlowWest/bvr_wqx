@@ -1,0 +1,607 @@
+---
+title: "HydroLab Data Cleaning and Upload"
+author: "Inigo Peng"
+date: "2022-10-10"
+runtime: shiny
+output: 
+  html_document:
+    code_folding: hide
+---
+## Description of Data
+
+**Collection method:**
+
+Hydrolab DS5 Multiprobe
+
+**Raw File format:**
+
+CSVs with location in file title
+
+**Monitoring (Project ID)**
+
+Clear Lake Water Quality (CLM), Clear Lake Harmful Algal Bloom (HAB), Marina Sampling (MS), Big Valley shoreline sites(BVSHORE), Creek/Hitch Sampling (CS), Storm Water Sampling (SW).
+
+**WQX submittal required?**
+
+Yes
+
+**Note:**
+
+This script is a dynamic markdown where the user will be able to interact with the document. To run the document, click on "Run Document" to render it into an HTML format. 
+
+Usually, to run a markdown script, the user needs to make sure the project is set to the appropriate working directory. However, since this is an interactive markdown, we do not have to worry about that. The only files we need are the Alpha Lab excel files that needs to get updated.
+
+In these markdown documents, to see the code that are used to process the data, click on the "code" button on the right. If you have any question about any of the functions used, type in ? followed by the function (eg. `?mutate` in the console,  or google search the function to see detailed documentation on the function.
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, fig.width=15, fig.height=10)
+
+library(tidyverse)
+library(dplyr)
+library(lubridate)
+library(hms)
+library(stringr)
+library(DT)
+library(utf8)
+library(wqxWeb)
+```
+
+```{r, include=FALSE}
+project_id_lookup <- c(
+  # CLM(Clear Lake),MS(Marina),HAB,BVSHORE(Big Valley shoreline sites: M1 or BVCL6),CS(Creek Sampling),SW(Storm Water)
+  "M1" = "MS",
+  "M2" = "MS",
+  "M3" = "MS",
+  "M4" = "MS",
+  "HSP" = "SW",
+  "BVSWD1" = "SW",
+  "NBPRSC" = "SW",
+  "RSTCC" = "SW",
+  "BVCL1" = "SW",
+  "BVRTC1" = "SW",
+  "BVRTCC" = "SW",
+  "BVSWDRV" = "SW",#not in cdx
+  "RVSI1" = "SW",#not in cdx
+  "RVSI2" = "SW",#not in cdx
+  "BVCL2" = "CLM",	
+  "BVCL3" = "CLM",	
+  "BVCL5" = "CLM",	
+  "BVCL6" = "CLM",	
+  "BVCL11" = "CLM",	
+  "BVCL12" = "CLM",	
+  "BVCL13" = "CLM",	
+  "BVCL14" = "CLM",	
+  "BVCL15" = "CLM",	
+  "BVCL16" = "CLM",	
+  "BVCL17" = "CLM",	
+  "BVCL18" = "CLM",	
+  "BVCL19" = "CLM",	
+  "BVCL20" = "CLM",
+  "FC1" = "CS", 
+  "FC2" = "CS",
+  "FC3" = "CS",#not in cdx
+  "MC1" = "CS",
+  "MC2" = "CS",
+  "TC1" = "CS",
+  "AC1" = "CS",
+  "AC2" = "CS",
+  "AC3" = "CS",
+  "AC4" = "CS",
+  "MCC1" = "CS",
+  "KC1" = "CS",
+  "CC1" = "CS",
+  "SC1" = "CS",
+  "SC2" = "CS",#not in cdx
+  "SHC2"= "CS",#not in cdx
+  "CC2" = "CS",#not in cdx
+  "SIEG01" = "CS",#not in cdx
+  "COOP01" = "CS",#not in cdx
+  "CLOV01" = "CS",#not in cdx
+  "DRY01" = "CS",#not in cdx
+  "COY01" = "CS",#not in cdx
+  "SCOT01"= "CS",#not in cdx
+  "AND01" = "CS",#not in cdx
+  "NFORK01" = "CS",#not in cdx
+  "LONG01" = "CS", #not in cdx
+  "PUT01" = "CS", #not in cdx
+  "MID01"= "CS", #not in cdx
+  "KC5"= "CS", #not in cdx
+  "AP01" = "HAB",
+  "BP" = "HAB",
+  "CLOAKS01" = "HAB",
+  "CLV7" = "HAB",
+  "CP" = "HAB",
+  "ELEM01" = "HAB",
+  "GH" = "HAB",
+  "HB" = "HAB",
+  "JB" = "HAB",
+  "KEYS01" = "HAB",
+  "KEYS03" = "HAB",
+  "KP01" = "HAB",
+  "LC01" = "HAB",
+  "LPTNT" = "HAB",
+  "LS" = "HAB",
+  "LS2" = "HAB",
+  "LUC01" = "HAB",
+  "RED01" = "HAB",
+  "RODS" = "HAB",
+  "SBMMEL01" = "HAB",
+  "SHADY01" = "HAB",
+  "UBL" = "HAB",
+  "CL-1" = "HAB",
+  "CL-3" = "HAB",
+  "CL-4" = "HAB",
+  "CL-5" = "HAB",
+  "LA-03" = "HAB",
+  "NR-02" = "HAB",
+  "OA-04" = "HAB",
+  "UA-01" = "HAB",
+  "UA-06" = "HAB",
+  "UA-07" = "HAB",
+  "UA-08" = "HAB",
+  "PILLS01" = "HAB", #not in cdx
+  "LAKEPILS01" = "HAB" #not in cdx
+  )
+
+unit_lookup <- c(
+  "Temperature, water" = "deg C", 
+  "Specific conductance" = "mS/cm", 
+  "Resistivity" = "KOhm/cm", 
+  "Salinity" = "ppt", 
+  "Total dissolved solids" = "g/L", 
+  "Dissolved oxygen saturation" = "%",
+  "Dissolved oxygen (DO)" = "mg/L", 
+  "pH" = "None", 
+  "Turbidity" = "NTU",
+  "Oil & Grease (HEM)" = "mg/L",
+  "Nitrate + Nitrite as N" = "mg/L",
+  "Phosphorus, total" = "mg/L",
+  "Total Organic Carbon" = "mg/L")
+
+method_id_lookup <- c(
+  "SM9223B" = "9223-B",
+  "EPA 300.0" = "300.0",
+  "ELISA" = "520060",
+  "QPCR" = "1611",
+  "EPA 1664A" = "1664A",
+  "SM4500-NO3 E" = "4500-NO3(E)",
+  "SM4500-P F" = "4500-P-F",
+  "SM5310C" = "5310-C"
+)
+
+method_context_lookup <- c(
+  "SM9223B" = "APHA",
+  "EPA 300.0" = "USEPA",
+  "ELISA" = "ABRAXIS LLC",
+  "QPCR" = "USEPA",
+  "EPA 1664A" = "USEPA",
+  "SM4500-NO3 E" = "APHA",
+  "SM4500-P F" = "APHA",
+  "SM5310C" = "APHA"
+  
+)
+
+characteristic_lookup <- c(
+  "Oil & Grease (HEM)" = "Oil and Grease",
+  "Phosphorus, total" = "Phosphorus",
+  "Total Organic Carbon" = "Organic carbon",
+  "E. Coli" = "Escherichia coli"
+)
+
+project_sites <- c(
+  "M1",
+  "M2",
+  "M3",
+  "M4",
+  "HSP",
+  "BVSWD1",
+  "NBPRSC",
+  "RSTCC",
+  "BVCL1",
+  "BVRTC1",
+  "BVRTCC",
+  "BVSWDRV",#not in cdx
+  "RVSI1",#not in cdx
+  "RVSI2",#not in cdx
+  "BVCL2",	
+  "BVCL3",	
+  "BVCL5",	
+  "BVCL6",	
+  "BVCL11",	
+  "BVCL12",	
+  "BVCL13",	
+  "BVCL14",	
+  "BVCL15",	
+  "BVCL16",	
+  "BVCL17",	
+  "BVCL18",	
+  "BVCL19",	
+  "BVCL20",
+  "FC1",
+  "FC2",
+  "FC3",#not in cdx
+  "MC1",
+  "MC2",
+  "TC1",
+  "AC1",
+  "AC2",
+  "AC3",
+  "AC4",
+  "MCC1",
+  "KC1",
+  "CC1",
+  "SC1",
+  "SC2",#not in cdx
+  "SHC2",#not in cdx
+  "CC2",#not in cdx
+  "SIEG01",#not in cdx
+  "COOP01",#not in cdx
+  "CLOV01",#not in cdx
+  "DRY01",#not in cdx
+  "COY01",#not in cdx
+  "SCOT01",#not in cdx
+  "AND01",#not in cdx
+  "NFORK01",#not in cdx
+  "LONG01", #not in cdx
+  "PUT01", #not in cdx
+  "MID01", #not in cdx
+  "KC5", #not in cdx
+  "AP01",
+  "BP",
+  "CLOAKS01",
+  "CLV7",
+  "CP",
+  "ELEM01",
+  "GH",
+  "HB",
+  "JB",
+  "KEYS01",
+  "KEYS03",
+  "KP01",
+  "LC01",
+  "LPTNT",
+  "LS",
+  "LS2",
+  "LUC01",
+  "RED01",
+  "RODS",
+  "SBMMEL01",
+  "SHADY01",
+  "UBL",
+  "CL-1",
+  "CL-3",
+  "CL-4",
+  "CL-5",
+  "LA-03",
+  "NR-02",
+  "OA-04",
+  "UA-01",
+  "UA-06",
+  "UA-07",
+  "UA-08",
+  "PILLS01", #not in cdx
+  "LAKEPILS01"  #not in cdx
+)
+```
+
+## Load Data
+
+Click on browse and find the appropriate Hydro Lab CSV files on your computer. Select the file that needs to be transformed to WQX format. 
+
+We will read the excel files using the function `read_csv()` from the tidyverse package. The loading file script will also parse the first line of the file, 'Log File Name,' for the sample location. The results data starts after the first five lines. We will also remove the empty columns using `select().` Lastly, we will filter out the lines of the data that do not contain any value using the `filter()` function.
+
+Once the parsing is finished, the data frame will appear below this chunk.
+
+```{r, echo=FALSE}
+fileInput(
+  "hydro_lab_files",
+  "Choose HydroLab CSV File",
+  accept = ".csv",
+  multiple = TRUE
+)
+
+all_files <- reactive({
+  req(input$hydro_lab_files)
+  
+  
+  raw_location <-
+    read_csv(input$hydro_lab_files$datapath,
+             col_names = FALSE,
+             n_max = 1)
+  location <- c(raw_location$X1)
+  regex_pattern <- "\\w+$"
+  location_id <- unlist(str_extract_all(location,
+                                        regex_pattern))
+  # print(location_id)
+  raw_results_data <-
+    read_csv(input$hydro_lab_files$datapath,
+             skip = 5,
+             col_types = "c") |>
+    mutate("location_id" = location_id) |>
+    mutate_if(is.character, utf8::utf8_encode) |>     select(-c(3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29)) |> 
+    filter(str_count(Date, "\\d+") > 2)
+
+  
+  return (raw_results_data)
+  
+})
+
+renderDataTable(
+  all_files(), 
+  options=list(scrollX=T)
+)
+```
+
+## QA/QC
+
+Here are a few basic QA/QC processes to make sure that the data is in the right format.
+
+```{r}
+renderUI({
+  HTML(
+    paste(
+      "<ul><li> Are there any NA values in the 'Temp' column: ",
+      "<b>",
+      any(is.na(all_files()$TEMP)),
+      "</b></li></ul>"
+    )
+  )
+})
+
+```
+
+## Make Activity Function
+
+Before transforming the results data into WQX format, we will create a function that will help to make the 'Activity ID' column of the WQX file. To make the Activity ID, it needs location ID, date, activity type, equipment name, depth, time and equipment comment. Run this function with a `mutate()` statement to create the 'Activity ID.'
+
+```{r}
+make_activity_id <-
+  function(location_id,
+           date,
+           activity_type,
+           equipment_name,
+           depth = NULL,
+           time = NULL,
+           equipment_comment = NULL) {
+    YYYYMMDD <- gsub('/', '', date)
+    activity <- ifelse(activity_type == "Sample-Routine", "SR", "FM")
+    equipment <- ifelse(equipment_name == "Probe/Sensor", "PS", NA)
+    hhmm <- gsub(':', '', time)
+    equipment_comment <- case_when(
+      equipment_comment == "Hydrolab Surveyor DS5 Multiprobe" ~ "Hydro",
+      equipment_comment == "AlgaeChek Ultra Fluorometer" ~ "Algae",
+      TRUE ~ NA_character_
+    )
+    paste(location_id,
+          YYYYMMDD,
+          hhmm,
+          activity,
+          equipment,
+          depth,
+          equipment_comment,
+          sep = ":")
+}
+```
+
+## Data Transformation
+
+Now we could start transforming the data into WQX format. We will do this in two steps. We will first remove the columns that we do not need ("IBVSvr4", "CHL," and "PCY") based on the column name. We will then rename the water quality variables into WQX-appropriate water quality variables. And lastly, we pivot the water quality variables from short form to long form. We will call the new column containing the names "Characteristic Name" and the column containing the values "Result Value."
+
+```{r}
+partial_clean_hydrolab <- reactive({
+  
+  req(input$hydro_lab_files)
+
+  all_files <- all_files() |> 
+  select(-c("IBVSvr4", "CHL", "PCY")) |>
+  rename("Temperature, water" = "Temp",
+         "Specific conductance" = "SpCond",
+         "Resistivity" = "Res",
+         "Salinity" = "Sal",
+         "Total dissolved solids" = "TDS",
+         "Dissolved oxygen saturation" = "DO%",
+         "Dissolved oxygen (DO)" = "DO",
+         "pH" = "pH",
+         "Turbidity" = "Turb",
+         "Monitoring Location ID" = location_id)|> 
+     pivot_longer(
+      !c(Date, Time, Depth10, `Monitoring Location ID`),
+      names_to = "Characteristic Name",
+      "values_to" = "Result Value"
+    )
+})
+
+renderDataTable(
+  partial_clean_hydrolab(),
+  options=list(scrollX=T)
+)
+```
+
+
+In the second step, we format our data frame into the final WQX format. It involves creating the correct columns of the BVR WQX schema, removing the columns we do not use and ordering them in the same order as the schema.
+
+```{r}
+clean_hydro_lab <- reactive({
+  
+  req(input$hydro_lab_files)
+  
+  hydrolab_formatted_for_wqx <- partial_clean_hydrolab() |> 
+    mutate("Project ID" = project_id_lookup[`Monitoring Location ID`],
+         "Activity ID User Supplied(PARENTs)" = "",
+         "Activity Type" = "Field Msr/Obs",
+         "Activity Media Name" = "Water",
+         "Activity Start Date" = format(mdy(Date), "%m/%d/%Y"),
+         "Activity Start Time" = format(parse_date_time(Time, c('HMS', 'HM')), "%H:%M"),
+         "Activity Start Time Zone" = "PST",
+         "Activity Depth/Height Measure" = as.numeric(Depth10),
+         "Activity Depth/Height Unit" = "m",
+         "Sample Collection Method ID" = "BVR Tribal SWQAPP",
+         "Sample Collection Method Context" = "CA_BVR",
+         "Sample Collection Equipment Name" = "Probe/Sensor",
+         "Sample Collection Equipment Comment" = "Hydrolab Surveyor DS5 Multiprobe",
+         "Characteristic Name" = `Characteristic Name`,
+         "Result Unit" = unit_lookup[`Characteristic Name`],
+         "Characteristic Name User Supplied" = "",
+         "Method Speciation" = "",
+         "Result Detection Condition" = "",
+         "Result Value" = `Result Value`,
+         "Result Unit" = `Result Unit`,
+         "Result Measure Qualifier" = "",
+         "Result Sample Fraction" = "",
+         "Result Status ID" = "Final",
+         "ResultTemperatureBasis" = "",
+         "Statistical Base Code" = "",
+         "ResultTimeBasis" = "",
+         "Result Value Type" = "Actual",
+         "Activity ID (CHILD-subset)" = make_activity_id(location_id = `Monitoring Location ID`,
+                                          date = `Activity Start Date`,
+                                          time = `Activity Start Time`,
+                                          activity_type = `Activity Type`,
+                                          equipment_name = `Sample Collection Equipment Name`,
+                                          depth = `Activity Depth/Height Measure`,
+                                          equipment_comment = `Sample Collection Equipment Comment`),
+         "Result Analytical Method ID" = "",
+         "Result Analytical Method Context" = "",
+         "Analysis Start Date" = "",
+         "Result Detection/Quantitation Limit Type" = "",
+         "Result Detection/Quantitation Limit Measure" = "",
+         "Result Detection/Quantitation Limit Unit" = "",
+         "Result Comment" = ""
+
+         ) |>
+  select(-c(Date, Depth10, Time)) |>
+  relocate("Project ID",
+           "Monitoring Location ID",
+           "Activity ID (CHILD-subset)",
+           "Activity ID User Supplied(PARENTs)",
+           "Activity Type",
+           "Activity Media Name",
+           "Activity Start Date",
+           "Activity Start Time",
+           "Activity Start Time Zone",
+           "Activity Depth/Height Measure",
+           "Activity Depth/Height Unit",
+           "Sample Collection Method ID",
+           "Sample Collection Method Context",
+           "Sample Collection Equipment Name",
+           "Sample Collection Equipment Comment",
+           "Characteristic Name",
+           "Characteristic Name User Supplied",
+           "Method Speciation",
+           "Result Detection Condition",
+           "Result Value",
+           "Result Unit",
+           "Result Measure Qualifier",
+           "Result Sample Fraction",
+           "Result Status ID",
+           "ResultTemperatureBasis",
+           "Statistical Base Code",
+           "ResultTimeBasis",
+           "Result Value Type",
+           "Result Analytical Method ID",
+           "Result Analytical Method Context",
+           "Analysis Start Date",
+           "Result Detection/Quantitation Limit Measure",
+           "Result Detection/Quantitation Limit Unit",
+           "Result Comment"
+           )
+})
+
+renderDataTable(
+  clean_hydro_lab(),
+  options=list(scrollX=T)
+)
+
+```
+
+## Data Download
+
+Lastly, we export the data to a CSV file in the data folder. Cells with NAs are saved as blank cells. 
+
+Click on the Download button for the WQX-ready CSV file. 
+
+
+```{r, echo=FALSE}
+unique_signature <- format(lubridate::now(), "%Y%m%d_%H%M%S")
+
+downloadHandler(
+  filename = function() {
+    paste("hydro-lab-data-", unique_signature, ".csv", sep = "")
+  },
+  content = function(file) {
+    write.csv(clean_hydro_lab(),
+              file,
+              na = '',
+              row.names = FALSE)
+  }
+)
+```
+
+## Data Upload To CDX-WQX
+
+The 'Upload WQX File Path' is automatically populated with the location of the downloaded CSV file from the previous step. Please double-check and make sure the file is in the default Downloads folder. If it is not, enter the full location of the file.
+
+Use the 'Upload To WQX' button below to directly upload the previously downloaded data to CDX. It will take a few seconds for the upload status to show up. Once it does, you may close the markdown. CDX will send an email to the user with the final status once the upload finishes.
+
+```{r}
+path_to_download <- file.path(Sys.getenv("USERPROFILE"), "Downloads")
+file_path <-
+  str_replace_all(
+    paste(
+      path_to_download,
+      "/hydro-lab-data-",
+      unique_signature,
+      ".csv",
+      sep = ""
+    ),
+    "\\\\",
+    "/"
+  )
+
+textInput("wqx_upload", "Upload WQX File Path", value = file_path)
+actionButton("button", "Upload To WQX")
+
+conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                            tags$div(HTML("<b> Starting WQX upload. Please wait for the upload status from CDX...</b>"),id="loadmessage"))
+
+status <- eventReactive(input$button, {
+  
+  req(print_statement())
+  
+  API_KEY = Sys.getenv("WQX_API_KEY")
+  USER_ID = "INIGOPENG"
+  FILE_PATH = input$wqx_upload
+  FILE_NAME =  paste("hydro-lab-data-", unique_signature, ".csv", sep = "")
+  config_id = 8030
+  session <- cdx(USER_ID, API_KEY, FILE_PATH, FILE_NAME)
+  file_id <- cdx_upload(session = session)
+  dataset_id <-
+    cdx_import(
+      session = session,
+      file_id = file_id,
+      config_id = config_id,
+      params = c("newOrExistingData", "0")
+    )
+  # # 
+  status <- cdx_get_status(session, dataset_id)
+  # 
+  return(status$StatusName)
+    # return(file_id)
+})
+
+
+renderUI({
+  HTML(
+    paste("Upload Status:",
+          status(),
+          "<br>"),
+    "You may now close the document. Check email for the final upload confirmation from CDX."
+  )
+})
+
+```
+
+
+
+
+
