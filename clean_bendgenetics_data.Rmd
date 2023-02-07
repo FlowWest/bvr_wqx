@@ -282,16 +282,17 @@ project_sites <- c(
 )
 ```
 
-Bend Genetic lab report result comes in two data frames (Analytical Report For Samples and Sample Results). We need to parse them from the excel file. We will first read in the excel file, skipping the first 5 lines of the header and delete an empty column (x8). We have also changed the column type for Sample ID into numeric - any row without numbers will now be NA. This is for parsing in the next step.
-To parse the Analytical Report For Samples dataframe, we know that the data frame ends after "Sample ID 1839". The next row is NA. So we parse a dataframe where it ends before the row that is NA.
+## Load Data
 
-To perform this parse, we use the square bracket to get the position of the elements from the data frame and the function which() returns the position of an element based on the condition (in this case we are looking for the position that is NA.)
+Bend Genetic lab report result comes in two data frames (Analytical Report For Samples and Sample Results). We need to parse them from the csv file. We will first read in the file, skipping the first 5 lines of the header and delete the empty columns and rows.
 
-To parse for the Sample Results data frame, we know that it starts after the second NA row (excel row 28 "Sample ID"), and ends at the third NA (excel row 54 "Quality Control"). We then create the corresponding column names for the sample results dataframe. 
+To parse the Analytical Report and Sample Results data frame, we parse the data based on the rows that are NA. For both data frames, we know that the data frame ends after a specific Sample ID. The next row is NA. So we parse a data frame where it ends before the row that is NA.
+
+To perform this parse, we use the square bracket to get the position of the elements from the data frame and the function `which()`. This function returns the position of an element based on the condition.
 
 ```{r, echo=FALSE}
 fileInput("bend_files",
-          "Choose Bend Genetics Excel File",
+          "Choose Bend Genetics CSV File",
           multiple = FALSE)
 
 
@@ -340,6 +341,30 @@ renderDataTable(
 
 Here are a few basic QA/QC processes to make sure that the data is in the right format.
 
+```{r}
+renderUI({
+  HTML(
+    paste(
+      "<ul><li> Are there any NA values in the 'Target' column: ",
+      "<b>",
+      any(is.na(all_files()$Target)),
+      "</b></li></ul>"
+    )
+  )
+})
+
+renderUI({
+  HTML(
+    paste(
+      "<ul><li> Unique toxigeneic cyanobacteria collected in the 'Target' column: ",
+      "<b>",
+      paste(unique(all_files()$Target, "\n")),
+      "</b>",
+      "</ul></li>"
+    )
+  )
+})
+```
 
 ## Make Activity Function
 
@@ -363,76 +388,175 @@ make_activity_id <- function(location_id, date, activity_type, equipment_name, d
 }
 ```
 
-Lastly we map the full data frame to WQX schema by creating rows and columns based on the values of the bend genetics data frame.
+## Data Transformation
+
+To transform the data into WQX format, we will create columns based on the WQX schema using the `mutate()` function from the tidyverse package. We will then drop the columns we do not need and reorder the data.
+
 
 ```{r}
-# bend_wqx <- bend_raw |> 
-#   mutate("Project ID" = "HAB",
-#          # Not all locations are recorded in master monitoring plan:
-#         # Benthic LUC01, OA04, LA03
-#          "Monitoring Location ID" = location,
-#          "Activity ID User Supplied (PARENTs)" = NA,
-#          "Activity Type" = "Sample-Routine", 
-#          "Activity Media Name" = matrix,
-#         # use the lubridate package function mdy_hm()to format date in m/d/y 
-#          "Activity Start Date" = format(mdy_hm(date_collected), "%m/%d/%Y"),
-#         # use the lubridate package function mdy_hm() to formate time in HH:MM
-#          "Activity Start Time" = format(mdy_hm(date_collected), "%H:%M"),
-#          "Activity Start Time Zone" = "PST",
-#         # Need activity depth/height, unit
-#          "Activity Depth/Height Measure" = NA,
-#          "Activity Depth/Height Unit" = NA,
-#         # Confirm Sample Collection method id is BVR SWQAPP
-#          "Sample Collection Method ID" = "BVR SWQAPP",
-#          "Sample Collection Method Context" = "CA_BVR",
-#         # Confirm Equipment for bend is Water Bottle
-#          "Sample Collection Equipment Name" = "Water Bottle",
-#          "Sample Collection Equipment Comment" = NA,
-#          "Characteristic Name" = ifelse(target == "Microcystin/Nod.", "Microcystin/nodularin genes mcyE/ndaF", target),
-#          "Characteristic Name User Supplied" = NA,
-#          "Method Speciation" = NA,
-#          "Result Detection Condition" = ifelse(result == "ND", "Not Detected", NA),
-#          "Result Value" = ifelse(result == "ND", NA, result),
-#          "Result Unit" = ifelse(result == "ND", NA, units),
-#          "Result Measure Qualifier" = NA,
-#          "Result Sample Fraction" = "Total",
-#          "Result Status ID" = "Final",
-#          "ResultTemperatureBasis" = NA,
-#          "Statistical Base Code" = NA,
-#          "ResultTimeBasis" = NA,
-#          "Result Value Type" = "Actual",
-#         # method_lookup is in the lookup table. It points the methods to their IDs.
-#          "Result Analytical Method ID" = method_lookup[method],
-#         # method_context_lookup is in the lookup table. It points the method to their method context.
-#          "Result Analytical Method Context" = method_context_lookup[method],
-#          "Analysis Start Date" = format(mdy_hm(date_received), "%m/%d/%Y"),
-#          "Result Detection/Quantitation Limit Type" = "Practical Quantitation Limit",
-#          "Result Detection/Quantitation Limit Measure" = quantitation_limit,
-#          "Result Detection/Quantitation Limit Unit" = units,
-#          "Result Comment" = notes,
-#          "Activity ID (CHILD-subset)" = make_activity_id(location_id = location,
-#                                                         date = `Activity Start Date`,
-#                                                         time = `Activity Start Time`,
-#                                                         activity_type = `Activity Type`,
-#                                                         equipment_name = `Sample Collection Equipment Name`,
-#                                                         depth = `Activity Depth/Height Measure`)
-#   ) |> 
-#   relocate("Activity ID (CHILD-subset)", .before = "Activity ID User Supplied (PARENTs)") |> 
-#   select(-c(0:13))|> glimpse()
+clean_bend <- reactive({
+  
+  all_files <- all_files() |>
+  mutate("Project ID" = "HAB",
+         # Not all locations are recorded in master monitoring plan:
+        # Benthic LUC01, OA04, LA03
+         "Monitoring Location ID" = Location,
+         "Activity ID User Supplied (PARENTs)" = NA,
+         "Activity Type" = "Sample-Routine",
+         "Activity Media Name" = Matrix,
+        # use the lubridate package function mdy_hm()to format date in m/d/y
+         "Activity Start Date" = format(mdy_hm(`Date Collected`), "%m/%d/%Y"),
+        # use the lubridate package function mdy_hm() to formate time in HH:MM
+         "Activity Start Time" = format(mdy_hm(`Date Collected`), "%H:%M"),
+         "Activity Start Time Zone" = "PST",
+        # Need activity depth/height, unit
+         "Activity Depth/Height Measure" = NA,
+         "Activity Depth/Height Unit" = NA,
+        # Confirm Sample Collection method id is BVR SWQAPP
+         "Sample Collection Method ID" = "BVR SWQAPP",
+         "Sample Collection Method Context" = "CA_BVR",
+        # Confirm Equipment for bend is Water Bottle
+         "Sample Collection Equipment Name" = "Water Bottle",
+         "Sample Collection Equipment Comment" = NA,
+         "Characteristic Name" = ifelse(Target == "Microcystin/Nod.", "Microcystin/nodularin genes mcyE/ndaF", Target),
+         "Characteristic Name User Supplied" = NA,
+         "Method Speciation" = NA,
+         "Result Detection Condition" = ifelse(Result == "ND", "Not Detected", NA),
+         "Result Value" = ifelse(Result == "ND", NA, Result),
+         "Result Unit" = ifelse(Result == "ND", NA, Units),
+         "Result Measure Qualifier" = NA,
+         "Result Sample Fraction" = "Total",
+         "Result Status ID" = "Final",
+         "ResultTemperatureBasis" = NA,
+         "Statistical Base Code" = NA,
+         "ResultTimeBasis" = NA,
+         "Result Value Type" = "Actual",
+        # method_lookup is in the lookup table. It points the methods to their IDs.
+         "Result Analytical Method ID" = method_id_lookup[Method],
+        # method_context_lookup is in the lookup table. It points the method to their method context.
+         "Result Analytical Method Context" = method_context_lookup[Method],
+         "Analysis Start Date" = format(mdy_hm(`Date Received`), "%m/%d/%Y"),
+         "Result Detection/Quantitation Limit Type" = "Practical Quantitation Limit",
+         "Result Detection/Quantitation Limit Measure" = `Quantitation Limit`,
+         "Result Detection/Quantitation Limit Unit" = Units,
+         "Result Comment" = Notes,
+         "Activity ID (CHILD-subset)" = make_activity_id(location_id = Location,
+                                                        date = `Activity Start Date`,
+                                                        time = `Activity Start Time`,
+                                                        activity_type = `Activity Type`,
+                                                        equipment_name = `Sample Collection Equipment Name`,
+                                                        depth = `Activity Depth/Height Measure`)
+  ) |>
+  relocate("Activity ID (CHILD-subset)", .before = "Activity ID User Supplied (PARENTs)") |>
+  select(-c(0:13))
+})
+
+clean_bend_wqx <- reactive({
+  clean_bend <- clean_bend() |>
+    mutate(
+      "Result Unit" = ifelse(
+        clean_bend()$`Result Unit` == "µg/L",
+        "ug/L",
+        clean_bend()$`Result Unit`
+      ),
+      "Result Detection/Quantitation Limit Unit" = ifelse(
+        clean_bend()$`Result Detection/Quantitation Limit Unit` == "µg/L",
+        "ug/L",
+        clean_bend()$`Result Detection/Quantitation Limit Unit`
+      )
+    )
+})
+renderDataTable(
+  clean_bend_wqx(),
+  options=list(scrollX=T)
+)
 ```
-We need to change the unit "µg/L" to ug/L" to fit wqx format.
+
+## Data Download
+
+Lastly, we export the data to a CSV file in the data folder. Cells with NAs are saved as blank cells. 
+
+Click on the Download button for the WQX-ready CSV file. 
+
+```{r, echo=FALSE}
+unique_signature <- format(lubridate::now(), "%Y%m%d_%H%M%S")
+
+downloadHandler(
+  filename = function() {
+    paste("bend-lab-data-", unique_signature, ".csv", sep = "")
+  },
+  content = function(file) {
+    write.csv(clean_bend_wqx(),
+              file,
+              na = '',
+              row.names = FALSE)
+  }
+)
+
+
+```
+
+## Data Upload To CDX-WQX
+
+The 'Upload WQX File Path' is automatically populated with the location of the downloaded CSV file from the previous step. Please double-check and make sure the file is in the default Downloads folder. If it is not, enter the full location of the file.
+
+Use the 'Upload To WQX' button below to directly upload the previously downloaded data to CDX. It will take a few seconds for the upload status to show up. Once it does, you may close the markdown. CDX will send an email to the user with the final status once the upload finishes.
 
 ```{r}
-# bend_wqx <- bend_wqx |> 
-#   mutate("Result Unit" = ifelse(bend_wqx$`Result Unit` == "µg/L", "ug/L", bend_wqx$`Result Unit`),
-#          "Result Detection/Quantitation Limit Unit" = ifelse(bend_wqx$`Result Detection/Quantitation Limit Unit` == "µg/L", "ug/L", bend_wqx$`Result Detection/Quantitation Limit Unit`))
-```
+path_to_download <- file.path(Sys.getenv("USERPROFILE"), "Downloads")
+file_path <-
+  str_replace_all(
+    paste(
+      path_to_download,
+      "/bend-lab-data-",
+      unique_signature,
+      ".csv",
+      sep = ""
+    ),
+    "\\\\",
+    "/"
+  )
 
-And we export the data frame to a csv file using the function write_csv(). 
-```{r}
-# write_csv(bend_wqx, "data/bend_wqx.csv", na = "")
-```
+textInput("wqx_upload", "Upload WQX File Path", value = file_path)
+actionButton("button", "Upload To WQX")
 
+conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                            tags$div(HTML("<b> Starting WQX upload. Please wait for the upload status from CDX...</b>"),id="loadmessage"))
+
+status <- eventReactive(input$button, {
+  
+  API_KEY = Sys.getenv("WQX_API_KEY")
+  USER_ID = "INIGOPENG"
+  FILE_PATH = input$wqx_upload
+  FILE_NAME =  paste("bend-lab-data-", unique_signature, ".csv", sep = "")
+  config_id = 8030
+  session <- cdx(USER_ID, API_KEY, FILE_PATH, FILE_NAME)
+  file_id <- cdx_upload(session = session)
+  dataset_id <-
+  cdx_import(
+    session = session,
+    file_id = file_id,
+    config_id = config_id,
+    params = c("newOrExistingData", "0")
+  )
+
+  status <- cdx_get_status(session, dataset_id)
+  # return(file_id)  
+  return(status$StatusName)
+
+})
+
+
+renderUI({
+  HTML(
+    paste("Upload Status:",
+          status(),
+          "<br>"),
+    "You may now close the document. Check email for the final upload confirmation from CDX."
+  )
+})
+
+```
 
 
 

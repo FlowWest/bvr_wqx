@@ -59,7 +59,7 @@ summary(wqx_data$`Result Detection/Quantitation Limit Measure`)
 ```{r}
 unique(wqx_data$`Characteristic Name`)
 ```
-We could see that there are variables where they are the same but with different capitalization (eg. "Temperature , Water" and "Temperature, water".). We will make it uniform so that we get a more accurate presentation of the data spread.
+We could see that there a   re variables where they are the same but with different capitalization (eg. "Temperature , Water" and "Temperature, water".). We will make it uniform so that we get a more accurate presentation of the data spread.
 
 ```{r}
 wqx_data_cleaned <- wqx_data |> 

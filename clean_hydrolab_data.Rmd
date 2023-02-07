@@ -561,13 +561,8 @@ file_path <-
 textInput("wqx_upload", "Upload WQX File Path", value = file_path)
 actionButton("button", "Upload To WQX")
 
-print_statement <- eventReactive(input$button, {
-  print("Starting WQX upload - please wait for upload status")
-})
-
-renderPrint({
-  print_statement()
-})
+conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                            tags$div(HTML("<b> Starting WQX upload. Please wait for the upload status from CDX...</b>"),id="loadmessage"))
 
 status <- eventReactive(input$button, {
   
@@ -595,9 +590,14 @@ status <- eventReactive(input$button, {
 })
 
 
-renderPrint({
-  paste("Upload Status:", status())
-  })
+renderUI({
+  HTML(
+    paste("Upload Status:",
+          status(),
+          "<br>"),
+    "You may now close the document. Check email for the final upload confirmation from CDX."
+  )
+})
 
 ```
 

@@ -287,9 +287,7 @@ project_sites <- c(
 
 Click on browse and find the appropriate Alpha Lab excel files on your computer. Select the file that needs to be transformed to WQX format. 
 
-We will read the excel files using the function `read_excel()` from the readxl package. The script will create a data frame of AlphaLab data by binding each file by row using the function `rbind().` The result is one data frame with all the data from the folder.
-
-Lastly, the script will parse the 'SAMPLENAME' column for the sample location in the column.
+We will read the excel files using the function `read_excel()` from the readxl package. The loading file script will also parse the 'SAMPLENAME' column for the sample location in the column.
 
 Once the parsing is finished, the data frame will appear below this chunk.
 
@@ -576,13 +574,8 @@ file_path <-
 textInput("wqx_upload", "Upload WQX File Path", value = file_path)
 actionButton("button", "Upload To WQX")
 
-print_statement <- eventReactive(input$button, {
-  print("Starting WQX upload - please wait for upload status")
-})
-
-renderPrint({
-  print_statement()
-})
+conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                            tags$div(HTML("<b> Starting WQX upload. Please wait for the upload status from CDX...</b>"),id="loadmessage"))
 
 status <- eventReactive(input$button, {
   API_KEY = Sys.getenv("WQX_API_KEY")
@@ -607,9 +600,14 @@ status <- eventReactive(input$button, {
 })
 
 
-renderPrint({
-  paste("Upload Status:", status())
-  })
+renderUI({
+  HTML(
+    paste("Upload Status:",
+          status(),
+          "<br>"),
+    "You may now close the document. Check email for the final upload confirmation from CDX."
+  )
+})
 
 ```
 
