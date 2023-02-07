@@ -27,11 +27,11 @@ Storm Water Sampling: YES; Tap Water Sampling: NO.
 
 **Note:**
 
-This script is a dynamic markdown where the user will be able to interact with the document. To run the document, click on "Run Document" to render it into an HTML format. 
+This script is a dynamic markdown where the user can interact with the document. To run the document, click on "Run Document" to render it in HTML format. 
 
-Usually, to run a markdown script, the user needs to make sure the project is set to the appropriate working directory. However, since this is an interactive markdown, we do not have to worry about that. The only files we need are the Alpha Lab excel files that needs to get updated.
+Usually, to run a markdown script, the user must ensure the project is set to the appropriate working directory. However, since this is an interactive markdown, we do not have to worry about that. The only files we need are the Alpha Lab excel files that need to get updated.
 
-In these markdown documents, to see the code that are used to process the data, click on the "code" button on the right. If you have any question about any of the functions used, type in ? followed by the function (eg. `?mutate` in the console,  or google search the function to see detailed documentation on the function.  
+In these markdown documents, click on the "code" button on the right to see the code used to process the data. If you have questions about any of the functions used, type in "? " followed by the function (eg. `?mutate`) in the console,  or google search the function to see detailed documentation.  
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, 
@@ -285,13 +285,13 @@ project_sites <- c(
 
 ## Load Data
 
-Click on browse and find the appropriate Alpha Lab excel files on your computer. Select all of the files (could select multiple) that need to be transformed to wqx format. 
+Click on browse and find the appropriate Alpha Lab excel files on your computer. Select the file that needs to be transformed to WQX format. 
 
-We will read the excel files using the function `read_excel()` from the readxl package. The script will create a dataframe of AlphaLab data by binding each file by row using the function `rbind()`. The end result is one data frame with all of the data from the folder.
+We will read the excel files using the function `read_excel()` from the readxl package. The script will create a data frame of AlphaLab data by binding each file by row using the function `rbind().` The result is one data frame with all the data from the folder.
 
 Lastly, the script will parse the 'SAMPLENAME' column for the sample location in the column.
 
-Once the parsing is finished, the first five rows of the AlphaLab dataframe will appear below this chunk.
+Once the parsing is finished, the data frame will appear below this chunk.
 
 ```{r, echo=FALSE}
 fileInput("alpha_files",
@@ -367,7 +367,7 @@ renderUI({
 
 ## Make Activity Function
 
-Before transforming the results data into WQX format, we will create a function that will help to make the 'Activity ID' column of WQX file. To make the Activity ID, it needs location ID, date, activity type, equipment name, depth, time and equipment comment. Simply run this function with a `mutate()` statement to create the 'Activity ID'.
+Before transforming the results data into WQX format, we will create a function that will help to make the 'Activity ID' column of the WQX file. To make the Activity ID, it needs location ID, date, activity type, equipment name, depth, time and equipment comment. Run this function with a `mutate()` statement to create the 'Activity ID.'
 
 
 ```{r}
@@ -406,15 +406,16 @@ make_activity_id <-
 
 ## Data Transformation
 
-To transform the data into WQX format, we will create columns based on WQX schema using the `mutate()` function from the tidyverse package. We will then drop the columns we do not need and reorder the data.
+To transform the data into WQX format, we will create columns based on the WQX schema using the `mutate()` function from the tidyverse package. We will then drop the columns we do not need and reorder the data.
 
-One important function is the `casewhen()` function. This function lets the user create multiple conditions, and if this condition is met, the column will be a specified value. If it is not met, it is a different value.
+One crucial function is the `casewhen()` function. This function lets the user create multiple conditions; if this condition is met, the column will be a specified value. If it is not met, it is a different value.
 
-For example, in the code `all_files <- all_files() |> mutate("Characteristic Name" = case_when( ANALYTE == "E. Coli" ~ "Escherichia coli",` `ANALYTE == "Oil & Grease (HEM)" ~ "Oil and Grease", ANALYTE == "Phosphorus, total" ~ "Phosphorus",` `ANALYTE == "Total Organic Carbon" ~ "Organic carbon", TRUE ~ ANALYTE)`
+For example for the following code: `all_files <- all_files() |> mutate("Characteristic Name" = case_when( ANALYTE == "E. Coli" ~ "Escherichia coli",` `ANALYTE == "Oil & Grease (HEM)" ~ "Oil and Grease", ANALYTE == "Phosphorus, total" ~ "Phosphorus",` `ANALYTE == "Total Organic Carbon" ~ "Organic carbon", TRUE ~ ANALYTE)`
 
-It could be read as: we are creating a new column named 'Characteristic Name' in the dataframe all_files. If the cell value from the 'ANALYTE' column from all_files is E. Coli (the condition), the corresponding cell value in the 'Characteristic Name' column will be "Eschericia coli". If the cell value from 'ANALYTE' column is "Oil & Grease (HEM)", the 'Characteristic name' column will be "Oil and Grease". If the cell value from 'ANALYTE' column is "Total Organic Carbon", the 'Characteristic name' column will be "Organic carbon".  And if the 'ANALYTE' column does not match any of these conditions, fill the rest of the 'Characteristic Name' column with values from the 'ANALYTE' column.
+It is paraphrased as we create a new column named 'Characteristic Name' in the data frame all_files. If the cell value from the 'ANALYTE' column from all_files is E. Coli (the condition), the corresponding cell value in the 'Characteristic Name' column will be "Escherichia coli". If the cell value from the 'ANALYTE' column is "Oil & Grease (HEM)," the 'Characteristic name' column will be "Oil and Grease ."If the cell value from the 'ANALYTE' column is "Total Organic Carbon," the 'Characteristic name' column will be "Organic carbon ." And if the 'ANALYTE' column does not match any of these conditions, fill the rest of the 'Characteristic Name' column with values from the 'ANALYTE' column.
 
-The `ifelse()` function works in the same way except it only takes in one condition. If that condition is met, the new column will be a new value. If it is not met, it will be another value.
+The `ifelse()` function works similarly, except it only takes in one condition. If that condition is met, the new column will be a new value. If it is not met, it will be another value.
+
 
 
 ```{r}
@@ -529,9 +530,9 @@ renderDataTable(
 
 ## Data Download
 
-Lastly we export the data to a CSV file in the data folder. Cells with NAs are saved as blank cells. 
+Lastly, we export the data to a CSV file in the data folder. Cells with NAs are saved as blank cells. 
 
-Click on the Download button for the WQX ready CSV file. 
+Click on the Download button for the WQX-ready CSV file. 
 
 ```{r, echo=FALSE}
 unique_signature <- format(lubridate::now(), "%Y%m%d_%H%M%S")
@@ -553,9 +554,9 @@ downloadHandler(
 
 ## Data Upload To CDX-WQX
 
-The 'Upload WQX File Path' is automatically populated with the location of the downloaded CSV file from the previous step. Please double check and make sure the file is in the default Downloads folder. If it is not, enter the full location of the file.
+The 'Upload WQX File Path' is automatically populated with the location of the downloaded CSV file from the previous step. Please double-check and make sure the file is in the default Downloads folder. If it is not, enter the full location of the file.
 
-Use the 'Upload To WQX' button below to directly upload the previously downloaded data to CDX. It will take a a few seconds for the upload status to show up. Once it does, you may close the markdown. CDX will send an email to the user with the final status once the upload finishes.
+Use the 'Upload To WQX' button below to directly upload the previously downloaded data to CDX. It will take a few seconds for the upload status to show up. Once it does, you may close the markdown. CDX will send an email to the user with the final status once the upload finishes.
 
 ```{r}
 path_to_download <- file.path(Sys.getenv("USERPROFILE"), "Downloads")
