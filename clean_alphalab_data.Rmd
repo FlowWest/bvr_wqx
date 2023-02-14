@@ -44,6 +44,7 @@ library(wqxWeb)
 library(DT)
 library(shiny)
 library(stringr)
+library(emo)
 ```
 ```{r, include=FALSE}
 project_id_lookup <- c(
@@ -328,9 +329,9 @@ Here are a few basic QA/QC processes to make sure that the data is in the right 
 renderUI({
   HTML(
     paste(
-      "<ul><li> Are all values in the 'Project' column 'Storm Water Monitoring': ",
+      "<ul><li> Checking all values in 'Project' column are 'Storm Water Monitoring': ",
       "<b>",
-      all(all_files()$PROJECT == "Storm Water Monitoring"),
+      ifelse(all(all_files()$PROJECT == "Storm Water Monitoring"), emo::ji("check"), emo::ji("x")),
       "</b></li></ul>"
     )
   )
@@ -340,9 +341,9 @@ renderUI({
 renderUI({
   HTML(
     paste(
-      "<ul><li> Are there any NA values in the 'SAMPLENAME' column: ",
+      "<ul><li> Checking for missing data in 'SAMPLENAME' column: ",
       "<b>",
-      any(is.na(all_files()$SAMPLENAME)),
+      ifelse(any(is.na(all_files()$SAMPLENAME)), emo::ji("x"), emo::ji("check")),
       "</b></li></ul>"
     )
   )
