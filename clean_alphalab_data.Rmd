@@ -324,41 +324,90 @@ renderDataTable(
 
 Here are a few basic QA/QC processes to make sure that the data is in the right format:
 
-
 ```{r}
+# ADD QA FUNCTION HERE ---------------------------------------------------------------
+# an example of qa qc function, it MUST return a result T/F and a description string
+check_correct_project_name <- function(d) {
+  result <- ifelse(all(all_files()$PROJECT == "Storm Water Monitoring"), TRUE, FALSE)
+  desc <- "Check 'Project' is set to 'Storm Water Monitoring' in all records"
+  
+  return(list(result = result, description=desc))
+} 
+
+
+check_missing_data_in_sample_name <- function() {
+  result <- ifelse(any(is.na(all_files()$SAMPLENAME)), FALSE, TRUE)
+  
+  return(list(result = result, description="Checking for missing data in 'SAMPLENAME' column"))
+}
+
+
+check_results_has_no_missing <- function() {
+  data <- all_files()
+  
+  return(
+    list(
+      result = sum(is.na(data$Result)) == 0,
+      description = "Checking for missing data in 'RESULTS'"
+    )
+  )
+}
+
+check_units_has_no_missing <- function() {
+  data <- all_files()
+  
+  return(
+    list(
+      result = sum(is.na(data$UNITS)) == 0,
+      description = "Checking for missing data in 'UNITS'"
+    )
+  )
+}
+
+check_spikelevel_has_no_missing <- function() {
+  data <- all_files()
+  
+  return(
+    list(
+      result = sum(is.na(data$SPIKELEVEL)) == 0,
+      description = "Checking for missing data in 'SPIKELEVEL'"
+    )
+  )
+}
+```
+
+
+```{r, echo=FALSE}
 
 # function calls all qaqc functions and creates html table data for them
-apply_qaqc <- function(qaqc_list, description=NULL) {
+apply_qaqc <- function(qaqc_list) {
   
   purrr::map(qaqc_list, function(f) {
     qaqc_result <- f()
     emoji <- ifelse(qaqc_result$result, emo::ji("check"), emo::ji("x"))
     tagList(
-      tags$td(paste(qaqc_result$description)),
-      tags$td(emoji)
+      tags$tr(
+      tags$td(paste(qaqc_result$description), style="padding:5px;"),
+      tags$td(emoji, style="padding:5px;")
+      )
     )
   })
   
 }
-
-# an example of qa qc function, it MUST return a result T/F and a description string
-check_correct_project_name <- function(d) {
-  result <- ifelse(all(all_files()$PROJECT == "Storm Water Monitoring"), TRUE, FALSE)
-  desc <- "Checking for values in 'Projects' column"
-  
-  return(list(result = result, description=desc))
-} 
-
 # populate this list with all qaqc funcs to apply
 qaqc_funcs <- list(
-  check_correct_project_name
+  check_correct_project_name, 
+  check_missing_data_in_sample_name,
+  check_results_has_no_missing,
+  check_units_has_no_missing,
+  check_spikelevel_has_no_missing
 )
 
 renderUI(
   tags$html(
     tags$table(
       border = "1",
-      style="border:2px solid black;width:100%",
+      style="border:2px solid black;width:70%",
       tags$tr(apply_qaqc(qaqc_funcs)) # <--------------- qaqc get applied here
     )
   )
