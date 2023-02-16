@@ -326,6 +326,45 @@ Here are a few basic QA/QC processes to make sure that the data is in the right 
 
 
 ```{r}
+
+# function calls all qaqc functions and creates html table data for them
+apply_qaqc <- function(qaqc_list, description=NULL) {
+  
+  purrr::map(qaqc_list, function(f) {
+    qaqc_result <- f()
+    emoji <- ifelse(qaqc_result$result, emo::ji("check"), emo::ji("x"))
+    tagList(
+      tags$td(paste(qaqc_result$description)),
+      tags$td(emoji)
+    )
+  })
+  
+}
+
+# an example of qa qc function, it MUST return a result T/F and a description string
+check_correct_project_name <- function(d) {
+  result <- ifelse(all(all_files()$PROJECT == "Storm Water Monitoring"), TRUE, FALSE)
+  desc <- "Checking for values in 'Projects' column"
+  
+  return(list(result = result, description=desc))
+} 
+
+# populate this list with all qaqc funcs to apply
+qaqc_funcs <- list(
+  check_correct_project_name
+)
+
+renderUI(
+  tags$html(
+    tags$table(
+      border = "1",
+      style="border:2px solid black;width:100%",
+      tags$tr(apply_qaqc(qaqc_funcs)) # <--------------- qaqc get applied here
+    )
+  )
+)
+
+
 renderUI({
   HTML(
     paste(
