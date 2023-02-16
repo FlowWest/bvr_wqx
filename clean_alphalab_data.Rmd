@@ -374,6 +374,16 @@ check_spikelevel_has_no_missing <- function() {
     )
   )
 }
+
+# check_unique_analytes <- function(analytes_list){
+#   
+# 
+#   return(
+#     result = unique(data$ANALYTE),
+#     description = "Unique water quality analytes collected in the 'ANALYTE' column"
+# 
+#   )
+# }
 ```
 
 
@@ -414,41 +424,31 @@ renderUI(
 )
 
 
-renderUI({
-  HTML(
-    paste(
-      "<ul><li> Checking all values in 'Project' column are 'Storm Water Monitoring': ",
-      "<b>",
-      ifelse(all(all_files()$PROJECT == "Storm Water Monitoring"), emo::ji("check"), emo::ji("x")),
-      "</b></li></ul>"
-    )
-  )
-})
-
-#Check if SAMPLENAME is N
-renderUI({
-  HTML(
-    paste(
-      "<ul><li> Checking for missing data in 'SAMPLENAME' column: ",
-      "<b>",
-      ifelse(any(is.na(all_files()$SAMPLENAME)), emo::ji("x"), emo::ji("check")),
-      "</b></li></ul>"
-    )
-  )
-})
-
 #Check for all unique analytes
-renderUI({
-  HTML(
-    paste(
-      "<ul><li> Unique water quality analytes collected in the 'ANALYTE' column: ",
-      "<b>",
-      paste(unique(all_files()$ANALYTE, "\n")),
-      "</b>",
-      "</ul></li>"
-    )
-  )
-})
+
+# renderUI(tags$html(
+#   tags$table(
+#     border = "1",
+#     style = "border:2px solid black;width:70%",
+#     tags$tr(
+#       tags$td(
+#         "Unique water quality analytes collected in the 'ANALYTE' column",
+#         style = "padding:5px"
+#       ),
+#       tags$td(unique(all_files()$ANALYTE), style = "padding:5px")
+#     )
+#   )
+# ))
+    
+# paste(
+#       "<ul><li> Unique water quality analytes collected in the 'ANALYTE' column: ",
+#       "<b>",
+#       paste(unique(all_files()$ANALYTE, "\n")),
+#       "</b>",
+#       "</ul></li>"
+#     )
+#   )
+# })
 
 ```
 
@@ -666,7 +666,7 @@ actionButton("button", "Upload To WQX")
 conditionalPanel(condition="$('html').hasClass('shiny-busy')",
                             tags$div(HTML("<b> Starting WQX upload. Please wait for the upload status from CDX...</b>"),id="loadmessage"))
 
-status <- eventReactive(input$button, {
+upload_data_resp <- eventReactive(input$button, {
   API_KEY = Sys.getenv("WQX_API_KEY")
   USER_ID = "INIGOPENG"
   FILE_PATH = input$wqx_upload
@@ -681,22 +681,36 @@ status <- eventReactive(input$button, {
       config_id = config_id,
       params = c("newOrExistingData", "0")
     )
-  # 
+  # return(dataset_id)
+  # # })
+  Sys.sleep(10)
   status <- cdx_get_status(session, dataset_id)
   
   return(status$StatusName)
-
 })
 
+# observe({
+  
 
-renderUI({
-  HTML(
-    paste("Upload Status:",
-          status(),
-          "<br>"),
-    "You may now close the document. Check email for the final upload confirmation from CDX."
-  )
-})
+
+renderUI(
+  # status <- cdx_get_status(session, dataset_id)
+  if (upload_data_resp() == "Import Failed") {
+  tags$p(tags$b("Import failed."), "Please retry upload.")
+} else
+  (tags$p(
+    tags$b("Application is importing data onto CDX."),
+    tags$br(),
+    "You may now close this document. Check email or CDX website for the final upload confirmation."
+  ))
+)
+#   HTML(
+#     paste("Upload Status:",
+#           status(),
+#           "<br>"),
+#     "You may now close the document. Check email for the final upload confirmation from CDX."
+#   )
+# })
 
 ```
 
