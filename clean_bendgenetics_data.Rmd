@@ -42,6 +42,7 @@ library(lubridate)
 library(readr)
 library(wqxWeb)
 library(utf8)
+library(emo)
 ```
 
 ```{r, include=FALSE}
@@ -345,9 +346,9 @@ Here are a few basic QA/QC processes to make sure that the data is in the right 
 renderUI({
   HTML(
     paste(
-      "<ul><li> Are there any NA values in the 'Target' column: ",
+      "<ul><li> Checking for missing data in 'Target' column: ",
       "<b>",
-      any(is.na(all_files()$Target)),
+      ifelse(any(is.na(all_files()$Target)), emo::ji("x"), emo::ji("check")),
       "</b></li></ul>"
     )
   )

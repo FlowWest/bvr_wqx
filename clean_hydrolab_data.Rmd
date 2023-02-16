@@ -44,6 +44,7 @@ library(stringr)
 library(DT)
 library(utf8)
 library(wqxWeb)
+library(emo)
 ```
 
 ```{r, include=FALSE}
@@ -340,9 +341,9 @@ Here are a few basic QA/QC processes to make sure that the data is in the right 
 renderUI({
   HTML(
     paste(
-      "<ul><li> Are there any NA values in the 'Temp' column: ",
+      "<ul><li> Checking for missing data in 'Temp' column: ",
       "<b>",
-      any(is.na(all_files()$TEMP)),
+      ifelse(any(is.na(all_files()$TEMP)), emo::ji("x"), emo::ji("check")),
       "</b></li></ul>"
     )
   )
@@ -565,8 +566,6 @@ conditionalPanel(condition="$('html').hasClass('shiny-busy')",
                             tags$div(HTML("<b> Starting WQX upload. Please wait for the upload status from CDX...</b>"),id="loadmessage"))
 
 status <- eventReactive(input$button, {
-  
-  req(print_statement())
   
   API_KEY = Sys.getenv("WQX_API_KEY")
   USER_ID = "INIGOPENG"
