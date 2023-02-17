@@ -1,29 +1,22 @@
 ---
 title: "Alpha Lab Data Cleaning and Upload"
-author: "Inigo Peng"
-date: "2022-10-12"
 runtime: shiny
 output: 
   html_document:
     code_folding: hide
+    
 ---
-## Description of Data
+## Data Description
 
-**Collection method:**
 
-Sampling Bottles
 
-**Raw File format:**
+| | |
+|:-|:-|
+|**Colection Method**        |    Sampling Bottles|
+|**Raw File Format**         | AlphaLab CSV lab report |
+|**Monitoring (Project ID)** | Storm Water Sampling (SW); Tap Water Sampling (CalWATCH).|
+|**WQX submittal required?** | Yes |
 
-AlphaLab CSV lab report
-
-**Monitoring (Project ID)**
-
-Storm Water Sampling (SW); Tap Water Sampling (CalWATCH).
-
-**WQX submittal required?**
-
-Storm Water Sampling: YES; Tap Water Sampling: NO.
 
 **Note:**
 
@@ -416,6 +409,7 @@ qaqc_funcs <- list(
 renderUI(
   tags$html(
     tags$table(
+      class = "table",
       border = "1",
       style="border:2px solid black;width:70%",
       tags$tr(apply_qaqc(qaqc_funcs)) # <--------------- qaqc get applied here
