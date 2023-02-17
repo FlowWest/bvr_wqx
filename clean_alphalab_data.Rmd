@@ -16,6 +16,8 @@ output:
 |**Raw File Format**         | AlphaLab CSV lab report |
 |**Monitoring (Project ID)** | Storm Water Sampling (SW); Tap Water Sampling (CalWATCH).|
 |**WQX submittal required?** | Yes |
+|**Rate of Upload** | None|
+
 
 
 **Note:**
@@ -294,15 +296,8 @@ all_files <- reactive({
   
   req(input$alpha_files)
   
-  raw_alpha_lab <-
-    map_df(purrr::map(input$alpha_files$datapath, read_excel), rbind)
-  for (row in 1:nrow(raw_alpha_lab)) {
-    for (n in 1:length(strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]])) {
-      if (strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]][n] %in% project_sites) {
-        raw_alpha_lab$SAMPLENAME[row] = strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]][n]
-      }
-    }
-  }
+  raw_alpha_lab <- purrr::map_df(input$alpha_files$datapath, readxl::read_excel)
+
   return (raw_alpha_lab)
 })
 
