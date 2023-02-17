@@ -287,6 +287,10 @@ We will read the excel files using the function `read_excel()` from the readxl p
 
 Once the parsing is finished, the data frame will appear below this chunk.
 
+```{r, eval=FALSE}
+alpha_labs_data <- readxl::read_excel("path/to/alpha-labs-raw-data.xlsx")
+```
+
 ```{r, echo=FALSE}
 fileInput("alpha_files",
           "Choose AlphaLab Excel File",
@@ -296,8 +300,15 @@ all_files <- reactive({
   
   req(input$alpha_files)
   
-  raw_alpha_lab <- purrr::map_df(input$alpha_files$datapath, readxl::read_excel)
-
+  raw_alpha_lab <-
+    map_df(purrr::map(input$alpha_files$datapath, read_excel), rbind)
+  for (row in 1:nrow(raw_alpha_lab)) {
+    for (n in 1:length(strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]])) {
+      if (strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]][n] %in% project_sites) {
+        raw_alpha_lab$SAMPLENAME[row] = strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]][n]
+      }
+    }
+  }
   return (raw_alpha_lab)
 })
 
