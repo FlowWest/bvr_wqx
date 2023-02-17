@@ -661,7 +661,7 @@ textInput("wqx_upload", "Upload WQX File Path", value = file_path)
 actionButton("button", "Upload To WQX")
 
 conditionalPanel(condition="$('html').hasClass('shiny-busy')",
-                            tags$div(HTML("<b> Starting WQX upload. Please wait for the upload status from CDX...</b>"),id="loadmessage"))
+                            tags$div(HTML("<b> Starting WQX upload. Please wait 20 seconds for the upload status from CDX...</b>"),id="loadmessage"))
 
 upload_data_resp <- eventReactive(input$button, {
   API_KEY = Sys.getenv("WQX_API_KEY")
@@ -680,7 +680,7 @@ upload_data_resp <- eventReactive(input$button, {
     )
   # return(dataset_id)
   # # })
-  Sys.sleep(10)
+  Sys.sleep(20)
   status <- cdx_get_status(session, dataset_id)
   
   return(status$StatusName)
@@ -695,11 +695,13 @@ renderUI(
   if (upload_data_resp() == "Import Failed") {
   tags$p(tags$b("Import failed."), "Please retry upload.")
 } else
-  (tags$p(
-    tags$b("Application is importing data onto CDX."),
-    tags$br(),
-    "You may now close this document. Check email or CDX website for the final upload confirmation."
-  ))
+  {
+    tags$p(
+      tags$b("Application is importing data onto CDX."),
+      tags$br(),
+      "You may now close this document. Check email or CDX website for the final upload confirmation."
+    )
+  }
 )
 #   HTML(
 #     paste("Upload Status:",
