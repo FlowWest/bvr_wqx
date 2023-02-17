@@ -300,15 +300,12 @@ all_files <- reactive({
   
   req(input$alpha_files)
   
-  raw_alpha_lab <-
-    map_df(purrr::map(input$alpha_files$datapath, read_excel), rbind)
-  for (row in 1:nrow(raw_alpha_lab)) {
-    for (n in 1:length(strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]])) {
-      if (strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]][n] %in% project_sites) {
-        raw_alpha_lab$SAMPLENAME[row] = strsplit(raw_alpha_lab$SAMPLENAME, " ")[[row]][n]
-      }
-    }
-  }
+  raw_alpha_lab <- purrr::map_df(input$alpha_files$datapath, read_excel) |> 
+    tidyr::separate(SAMPLENAME, into=c("sample1", "sample2"), sep = " ") |> 
+    dplyr::mutate(SAMPLENAME = ifelse(sample1 %in% project_sites, sample1, sample2)) |>
+    dplyr::select(-sample1, -sample2) |> 
+    dplyr::relocate(SAMPLENAME, .before = LABSAMPID)
+  
   return (raw_alpha_lab)
 })
 
