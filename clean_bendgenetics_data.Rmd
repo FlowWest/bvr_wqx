@@ -369,28 +369,6 @@ check_locations_in_lookup <- function(){
   return(list(result = result, description="Checking 'Location' column all in listed Project Sites"))
 }
 
-# renderUI({
-#   HTML(
-#     paste(
-#       "<ul><li> Checking for missing data in 'Target' column: ",
-#       "<b>",
-#       ifelse(any(is.na(all_files()$Target)), emo::ji("x"), emo::ji("check")),
-#       "</b></li></ul>"
-#     )
-#   )
-# })
-# 
-# renderUI({
-#   HTML(
-#     paste(
-#       "<ul><li> Unique toxigeneic cyanobacteria collected in the 'Target' column: ",
-#       "<b>",
-#       paste(unique(all_files()$Target, "\n")),
-#       "</b>",
-#       "</ul></li>"
-#     )
-#   )
-# })
 ```
 
 ```{r, echo=FALSE}
@@ -427,32 +405,6 @@ renderUI(
   )
 )
 
-
-#Check for all unique analytes
-
-# renderUI(tags$html(
-#   tags$table(
-#     border = "1",
-#     style = "border:2px solid black;width:70%",
-#     tags$tr(
-#       tags$td(
-#         "Unique water quality analytes collected in the 'ANALYTE' column",
-#         style = "padding:5px"
-#       ),
-#       tags$td(unique(all_files()$ANALYTE), style = "padding:5px")
-#     )
-#   )
-# ))
-    
-# paste(
-#       "<ul><li> Unique water quality analytes collected in the 'ANALYTE' column: ",
-#       "<b>",
-#       paste(unique(all_files()$ANALYTE, "\n")),
-#       "</b>",
-#       "</ul></li>"
-#     )
-#   )
-# })
 
 ```
 
