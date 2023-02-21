@@ -290,7 +290,7 @@ We will read the excel files using the function `read_excel()` from the readxl p
 Example:
 Here is an example of reading in the file using the `read_excel()` function.
 
-```{r, eval=FALSE}
+```{r, eval=FALSE, class.source = 'fold-show'}
 alpha_labs_data <- readxl::read_excel("path/to/alpha-labs-raw-data.xlsx")
 ```
 
@@ -326,7 +326,7 @@ renderDataTable(
 Example code:
 
 This chunk shows the `ifelse()` function to test the Project column. The returned value will be either yes or no depending on whether the test is TRUE or FALSE. That value will be saved as the result variable.
-```{r, eval=FALSE}
+```{r, eval=FALSE, class.source = 'fold-show'}
 result <- ifelse(alpha_labs_data$PROJECT == "Storm Water Monitoring", "YES", "NO")
 ```
 
@@ -520,7 +520,7 @@ The `ifelse()` function works similarly, except it only takes in one condition. 
 
 Example code:
 This chunk creates a new column called "Project ID", with its value being "SW".
-```{r, eval=FALSE}
+```{r, eval=FALSE, class.source = 'fold-show'}
 alpha_labs_data <- alpha_labs_data |> 
   mutate("Project ID" = "SW")
 ```
@@ -606,7 +606,7 @@ One last step that we need to do before getting a WQX ready dataset is to make s
 
 Example code:
 In this chunk we move the column "Result Analytical Method Context" to before the column "Analysis Start Date".
-```{r, eval=FALSE}
+```{r, eval=FALSE, class.source = 'fold-show'}
 alpha_labs_data <- alpha_labs_data |> 
   relocate("Result Analytical Method Context", .before = "Analysis Start Date")
 ```

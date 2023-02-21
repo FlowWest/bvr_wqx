@@ -288,6 +288,15 @@ Click on browse and find the appropriate Hydro Lab CSV files on your computer. S
 
 We will read the excel files using the function `read_csv()` from the tidyverse package. The loading file script will also parse the first line of the file, 'Log File Name,' for the sample location. The results data starts after the first five lines. We will also remove the empty columns using `select().` Lastly, we will filter out the lines of the data that do not contain any value using the `filter()` function.
 
+Example:
+Here is an example of filtering a file using the `filter()` function. This code filters rows where 'Temp' is bigger than 10.
+
+```{r, eval=FALSE, class.source = 'fold-show'}
+hydro_lab_data <- read_csv("path/to/hydro_lab_data.csv") |> 
+  filter(Temp > 10)
+```
+
+
 Once the parsing is finished, the data frame will appear below this chunk.
 
 ```{r, echo=FALSE}
@@ -435,7 +444,19 @@ make_activity_id <-
 
 ## Data Transformation
 
-Now we could start transforming the data into WQX format. We will do this in two steps. We will first remove the columns that we do not need ("IBVSvr4", "CHL," and "PCY") based on the column name. We will then rename the water quality variables into WQX-appropriate water quality variables. And lastly, we pivot the water quality variables from short form to long form. We will call the new column containing the names "Characteristic Name" and the column containing the values "Result Value."
+Now we could start transforming the data into WQX format. We will do this in two steps. We will first remove the columns that we do not need ("IBVSvr4", "CHL," and "PCY") based on the column name.
+
+Example:
+Here is an example of renaming a column 'Temp' to 'Temperature, water" using the `rename()` function.
+
+```{r, eval=FALSE, class.source = 'fold-show'}
+hydro_lab_data <- hydro_lab_data |> 
+  rename("Temperature, water" = "Temp")
+```
+
+
+We will then rename the water quality variables into WQX-appropriate water quality variables. And lastly, we pivot the water quality variables from short form to long form. We will call the new column containing the names "Characteristic Name" and the column containing the values "Result Value."
+
 
 ```{r}
 partial_clean_hydrolab <- reactive({

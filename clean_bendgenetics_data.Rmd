@@ -286,8 +286,8 @@ We will read the excel files using the function `read_csv()` from the dplyr pack
 Example:
 Here is an example of reading in the file using the `read_csv()` function. Notice how this is different from `read_excel()` which we used for the Alpha Labs data.
 
-```{r, eval=FALSE}
-bend_labs_data <- dplyr::read_csv("path/to/bend-genetics-lab.csv")
+```{r, eval=FALSE, class.source='fold-show'}
+bend_labs_data <- read_csv("path/to/bend-genetics-lab.csv")
 ```
 
 Bend Genetic lab report result comes in two data frames (Analytical Report For Samples and Sample Results). We need to parse them from the csv file. We will first read in the file, skipping the first 5 lines of the header and delete the empty columns and rows.
@@ -348,7 +348,7 @@ renderDataTable(
 
 Example code:
 This chunk shows the `unique()` function to test the Target column. The returned value will be all of the unique values of the column.
-```{r, eval=FALSE}
+```{r, eval=FALSE, class.source = 'fold-show'}
 uniqu(bend_labs_data$Target)
 ```
 
@@ -484,7 +484,7 @@ To transform the data into WQX format, we will create columns based on the WQX s
 
 Example code:
 This chunk selects the "Project ID" column and save it in a new variable.
-```{r, eval=FALSE}
+```{r, eval=FALSE, class.source='fold-show'}
 bend_labs_data_column <- bend_labs_data |> 
   select("Project ID")
 ```
