@@ -279,7 +279,7 @@ project_sites <- c(
 
 ## Load Data
 
-Click on browse and find the appropriate Alpha Lab excel files on your computer. Select the file that needs to be transformed to WQX format. 
+Click on browse and find the appropriate Bend Genetics excel files on your computer. Select the file that needs to be transformed to WQX format. 
 
 We will read the excel files using the function `read_csv()` from the dplyr package. 
 
@@ -295,6 +295,7 @@ Bend Genetic lab report result comes in two data frames (Analytical Report For S
 To parse the Analytical Report and Sample Results data frame, we parse the data based on the rows that are NA. For both data frames, we know that the data frame ends after a specific Sample ID. The next row is NA. So we parse a data frame where it ends before the row that is NA.
 
 To perform this parse, we use the square bracket to get the position of the elements from the data frame and the function `which()`. This function returns the position of an element based on the condition.
+
 
 ```{r, echo=FALSE}
 fileInput("bend_files",
@@ -482,7 +483,7 @@ make_activity_id <- function(location_id, date, activity_type, equipment_name, d
 To transform the data into WQX format, we will create columns based on the WQX schema using the `mutate()` function from the tidyverse package. We will then drop the columns we do not need and reorder the data.
 
 Example code:
-This chunk selects a column called "Project ID" and save it in a new variable.
+This chunk selects the "Project ID" column and save it in a new variable.
 ```{r, eval=FALSE}
 bend_labs_data_column <- bend_labs_data |> 
   select("Project ID")
