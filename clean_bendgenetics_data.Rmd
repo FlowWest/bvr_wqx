@@ -1,7 +1,5 @@
 ---
 title: "Bend Genetics Data Cleaning and Upload"
-author: "Inigo Peng"
-date: "2022-10-12"
 runtime: shiny
 output: 
   html_document:
@@ -21,7 +19,7 @@ output:
 
 This script is a dynamic markdown where the user can interact with the document. To run the document, click on "Run Document" to render it in HTML format. 
 
-Usually, to run a markdown script, the user must ensure the project is set to the appropriate working directory. However, since this is an interactive markdown, we do not have to worry about that. The only files we need are the Alpha Lab excel files that need to get updated.
+Usually, to run a markdown script, the user must ensure the project is set to the appropriate working directory. However, since this is an interactive markdown, we do not have to worry about that. The only files we need are the Bend Genetics excel files that need to get updated.
 
 In these markdown documents, click on the "code" button on the right to see the code used to process the data. If you have questions about any of the functions used, type in "? " followed by the function (eg. `?mutate`) in the console,  or google search the function to see detailed documentation.  
 

@@ -1,7 +1,5 @@
 ---
 title: "HydroLab Data Cleaning and Upload"
-author: "Inigo Peng"
-date: "2022-10-10"
 runtime: shiny
 output: 
   html_document:
@@ -24,7 +22,7 @@ output:
 
 This script is a dynamic markdown where the user will be able to interact with the document. To run the document, click on "Run Document" to render it into an HTML format. 
 
-Usually, to run a markdown script, the user needs to make sure the project is set to the appropriate working directory. However, since this is an interactive markdown, we do not have to worry about that. The only files we need are the Alpha Lab excel files that needs to get updated.
+Usually, to run a markdown script, the user needs to make sure the project is set to the appropriate working directory. However, since this is an interactive markdown, we do not have to worry about that. The only files we need are the Hydro Lab excel files that needs to get updated.
 
 In these markdown documents, to see the code that are used to process the data, click on the "code" button on the right. If you have any question about any of the functions used, type in ? followed by the function (eg. `?mutate` in the console,  or google search the function to see detailed documentation on the function.
 

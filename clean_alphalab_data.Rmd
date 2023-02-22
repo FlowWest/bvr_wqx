@@ -560,7 +560,7 @@ partial_clean_alpha_lab <- reactive({
         TRUE ~ NA_character_
       ),
       "Result Detection Condition" = case_when(
-        Result == "ND" ~ "Not Reported",
+        Result == "ND" ~ "Not Detected",
         Result == "Absent" ~ "Not Present",
         Result == "Present" ~ "Detected Not Quantified",
         TRUE ~ NA_character_
