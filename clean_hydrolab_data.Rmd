@@ -44,7 +44,6 @@ library(emo)
 
 ```{r, include=FALSE}
 project_id_lookup <- c(
-  # CLM(Clear Lake),MS(Marina),HAB,BVSHORE(Big Valley shoreline sites: M1 or BVCL6),CS(Creek Sampling),SW(Storm Water)
   "M1" = "MS",
   "M2" = "MS",
   "M3" = "MS",
@@ -181,102 +180,18 @@ characteristic_lookup <- c(
   "Oil & Grease (HEM)" = "Oil and Grease",
   "Phosphorus, total" = "Phosphorus",
   "Total Organic Carbon" = "Organic carbon",
-  "E. Coli" = "Escherichia coli"
+  "E. Coli" = "Escherichia coli",
+  "Nitrate + Nitrite as N" = "Nitrate + Nitrite"
 )
 
-project_sites <- c(
-  "M1",
-  "M2",
-  "M3",
-  "M4",
-  "HSP",
-  "BVSWD1",
-  "NBPRSC",
-  "RSTCC",
-  "BVCL1",
-  "BVRTC1",
-  "BVRTCC",
-  "BVSWDRV",#not in cdx
-  "RVSI1",#not in cdx
-  "RVSI2",#not in cdx
-  "BVCL2",	
-  "BVCL3",	
-  "BVCL5",	
-  "BVCL6",	
-  "BVCL11",	
-  "BVCL12",	
-  "BVCL13",	
-  "BVCL14",	
-  "BVCL15",	
-  "BVCL16",	
-  "BVCL17",	
-  "BVCL18",	
-  "BVCL19",	
-  "BVCL20",
-  "FC1",
-  "FC2",
-  "FC3",#not in cdx
-  "MC1",
-  "MC2",
-  "TC1",
-  "AC1",
-  "AC2",
-  "AC3",
-  "AC4",
-  "MCC1",
-  "KC1",
-  "CC1",
-  "SC1",
-  "SC2",#not in cdx
-  "SHC2",#not in cdx
-  "CC2",#not in cdx
-  "SIEG01",#not in cdx
-  "COOP01",#not in cdx
-  "CLOV01",#not in cdx
-  "DRY01",#not in cdx
-  "COY01",#not in cdx
-  "SCOT01",#not in cdx
-  "AND01",#not in cdx
-  "NFORK01",#not in cdx
-  "LONG01", #not in cdx
-  "PUT01", #not in cdx
-  "MID01", #not in cdx
-  "KC5", #not in cdx
-  "AP01",
-  "BP",
-  "CLOAKS01",
-  "CLV7",
-  "CP",
-  "ELEM01",
-  "GH",
-  "HB",
-  "JB",
-  "KEYS01",
-  "KEYS03",
-  "KP01",
-  "LC01",
-  "LPTNT",
-  "LS",
-  "LS2",
-  "LUC01",
-  "RED01",
-  "RODS",
-  "SBMMEL01",
-  "SHADY01",
-  "UBL",
-  "CL-1",
-  "CL-3",
-  "CL-4",
-  "CL-5",
-  "LA-03",
-  "NR-02",
-  "OA-04",
-  "UA-01",
-  "UA-06",
-  "UA-07",
-  "UA-08",
-  "PILLS01", #not in cdx
-  "LAKEPILS01"  #not in cdx
+method_speciation_lookup <- c(
+  "Nitrate + Nitrite as N" = "as N",
+  "Nitrate as N" = "as N",
+  "Nitrite as N" = "as N",
+  "Phosphorus, total" = "as P",
+  "Total Nitrogen" = "as N",
+  "Total Kjeldahl Nitrogen" = "as N",
+  "Orthophosphate" = "as P"
 )
 ```
 
@@ -352,7 +267,7 @@ check_missing_data_temp <- function() {
 }
 
 check_locations_in_lookup <- function(){
-  result <- ifelse(all(all_files()$Location %in% project_sites), TRUE, FALSE)
+  result <- ifelse(all(all_files()$Location %in% names(project_id_lookup)), TRUE, FALSE)
   
   return(list(result = result, description="Checking 'Location' column all in listed Project Sites"))
 }
@@ -592,7 +507,9 @@ downloadHandler(
 
 ## Data Upload To CDX-WQX
 
-The 'Upload WQX File Path' is automatically populated with the location of the downloaded CSV file from the previous step. Please double-check and make sure the file is in the default Downloads folder. If it is not, enter the full location of the file.
+The 'Upload WQX File Path' is automatically populated with the file path of the downloaded CSV file from the previous step. Please double-check and make sure the file is in the default Downloads folder. If it is not, enter the full location of the file.
+
+The 'CDX Account Info Path' is also automatically populated with the file path of the CSV file containing your WQX API Key, Username, and Config ID. Please double check the file is in the big_valley_wax folder.  
 
 Use the 'Upload To WQX' button below to directly upload the previously downloaded data to CDX. It will take a few seconds for the upload status to show up. Once it does, you may close the markdown. CDX will send an email to the user with the final status once the upload finishes.
 
@@ -611,35 +528,39 @@ file_path <-
     "/"
   )
 
+file_path_to_cdx_account <- paste0(getwd(), "/cdx-account-info.csv")
 textInput("wqx_upload", "Upload WQX File Path", value = file_path)
+textInput("cdx_account_info_file", "CDX Account Info File Path", value = file_path_to_cdx_account)
 actionButton("button", "Upload To WQX")
+
 
 conditionalPanel(condition="$('html').hasClass('shiny-busy')",
                             tags$div(HTML("<b> Starting WQX upload. Please wait 25 seconds for the upload status from CDX...</b>"),id="loadmessage"))
 
 upload_data_resp <- eventReactive(input$button, {
+  login_info <- read_csv(input$cdx_account_info_file)
   
-  API_KEY = Sys.getenv("WQX_API_KEY")
-  USER_ID = "INIGOPENG"
+  API_KEY = login_info$WQX_API_KEY
+  USER_ID = login_info$USER_ID
+  CONFIG_ID = login_info$CONFIG_ID
   FILE_PATH = input$wqx_upload
   FILE_NAME =  paste("hydro-lab-data-", unique_signature, ".csv", sep = "")
-  config_id = 8030
+  
   session <- cdx(USER_ID, API_KEY, FILE_PATH, FILE_NAME)
   file_id <- cdx_upload(session = session)
   dataset_id <-
     cdx_import(
       session = session,
       file_id = file_id,
-      config_id = config_id,
+      config_id = CONFIG_ID,
       params = c("newOrExistingData", "0")
     )
+
   Sys.sleep(25)
   status <- cdx_get_status(session, dataset_id)
-  # 
+  
   return(status$StatusName)
-
 })
-
 
 renderUI(
   if (upload_data_resp() == "Import Failed") {

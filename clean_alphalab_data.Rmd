@@ -40,8 +40,6 @@ library(DT)
 library(shiny)
 library(stringr)
 library(emo)
-# reticulate::use_condaenv("r-reticulate")
-# Sys.setenv()
 ```
 ```{r, include=FALSE}
 project_id_lookup <- c(
@@ -181,105 +179,21 @@ characteristic_lookup <- c(
   "Oil & Grease (HEM)" = "Oil and Grease",
   "Phosphorus, total" = "Phosphorus",
   "Total Organic Carbon" = "Organic carbon",
-  "E. Coli" = "Escherichia coli"
+  "E. Coli" = "Escherichia coli",
+  "Nitrate + Nitrite as N" = "Nitrate + Nitrite"
 )
 
-project_sites <- c(
-  "M1",
-  "M2",
-  "M3",
-  "M4",
-  "HSP",
-  "BVSWD1",
-  "NBPRSC",
-  "RSTCC",
-  "BVCL1",
-  "BVRTC1",
-  "BVRTCC",
-  "BVSWDRV",#not in cdx
-  "RVSI1",#not in cdx
-  "RVSI2",#not in cdx
-  "BVCL2",	
-  "BVCL3",	
-  "BVCL5",	
-  "BVCL6",	
-  "BVCL11",	
-  "BVCL12",	
-  "BVCL13",	
-  "BVCL14",	
-  "BVCL15",	
-  "BVCL16",	
-  "BVCL17",	
-  "BVCL18",	
-  "BVCL19",	
-  "BVCL20",
-  "FC1",
-  "FC2",
-  "FC3",#not in cdx
-  "MC1",
-  "MC2",
-  "TC1",
-  "AC1",
-  "AC2",
-  "AC3",
-  "AC4",
-  "MCC1",
-  "KC1",
-  "CC1",
-  "SC1",
-  "SC2",#not in cdx
-  "SHC2",#not in cdx
-  "CC2",#not in cdx
-  "SIEG01",#not in cdx
-  "COOP01",#not in cdx
-  "CLOV01",#not in cdx
-  "DRY01",#not in cdx
-  "COY01",#not in cdx
-  "SCOT01",#not in cdx
-  "AND01",#not in cdx
-  "NFORK01",#not in cdx
-  "LONG01", #not in cdx
-  "PUT01", #not in cdx
-  "MID01", #not in cdx
-  "KC5", #not in cdx
-  "AP01",
-  "BP",
-  "CLOAKS01",
-  "CLV7",
-  "CP",
-  "ELEM01",
-  "GH",
-  "HB",
-  "JB",
-  "KEYS01",
-  "KEYS03",
-  "KP01",
-  "LC01",
-  "LPTNT",
-  "LS",
-  "LS2",
-  "LUC01",
-  "RED01",
-  "RODS",
-  "SBMMEL01",
-  "SHADY01",
-  "UBL",
-  "CL-1",
-  "CL-3",
-  "CL-4",
-  "CL-5",
-  "LA-03",
-  "NR-02",
-  "OA-04",
-  "UA-01",
-  "UA-06",
-  "UA-07",
-  "UA-08",
-  "PILLS01", #not in cdx
-  "LAKEPILS01"  #not in cdx
+method_speciation_lookup <- c(
+  "Nitrate + Nitrite as N" = "as N",
+  "Nitrate as N" = "as N",
+  "Nitrite as N" = "as N",
+  "Phosphorus, total" = "as P",
+  "Total Nitrogen" = "as N",
+  "Total Kjeldahl Nitrogen" = "as N",
+  "Orthophosphate" = "as P"
 )
+
 ```
-
 
 ## Load Data
 
@@ -307,7 +221,7 @@ all_files <- reactive({
   
   raw_alpha_lab <- purrr::map_df(input$alpha_files$datapath, read_excel) |> 
     tidyr::separate(SAMPLENAME, into=c("sample1", "sample2"), sep = " ") |> 
-    dplyr::mutate(SAMPLENAME = ifelse(sample1 %in% project_sites, sample1, sample2)) |>
+    dplyr::mutate(SAMPLENAME = ifelse(sample1 %in% names(project_id_lookup), sample1, sample2)) |>
     dplyr::select(-sample1, -sample2) |> 
     dplyr::relocate(SAMPLENAME, .before = LABSAMPID)
   
@@ -320,6 +234,8 @@ renderDataTable(
 )
 
 ```
+
+
 
 ## QA/QC
 
@@ -434,36 +350,6 @@ renderUI(
   )
 )
 
-# apply_unique_qaqc <- function(unique_list) {
-#   
-#   purrr::map(unique_list, function(f) {
-#     qaqc_result <- f()
-#     # emoji <- ifelse(qaqc_result$result, emo::ji("check"), emo::ji("x"))
-#     tagList(
-#       tags$tr(
-#       tags$td(paste(qaqc_result$description), style="padding:5px;"),
-#       tags$td(paste(qaqc_result$result), style="padding:5px;")
-#       )
-#     )
-#   })
-#   
-# }
-# 
-# unique_qaqc_funcs <- list(
-#   check_unique_values
-# )
-# 
-# renderUI(
-#   tags$html(
-#     tags$table(
-#       class = "table",
-#       border = "1",
-#       style="border:2px solid black;width:70%",
-#       tags$tr(apply_qaqc(unique_qaqc_funcs)) # <--------------- qaqc get applied here
-#     )
-#   )
-# )
-
 
 ```
 
@@ -545,20 +431,11 @@ partial_clean_alpha_lab <- reactive({
       "Sample Collection Method Context" = "CA_BVR",
       "Sample Collection Equipment Name" = "Water Bottle",
       "Sample Collection Equipment Comment" = NA,
-      "Characteristic Name" = case_when(
-        ANALYTE == "E. Coli" ~ "Escherichia coli",
-        ANALYTE == "Oil & Grease (HEM)" ~ "Oil and Grease",
-        ANALYTE == "Phosphorus, total" ~ "Phosphorus",
-        ANALYTE == "Total Organic Carbon" ~ "Organic carbon",
-        TRUE ~ ANALYTE
-      ),
+      "Characteristic Name" = ifelse(
+        ANALYTE %in% names(characteristic_lookup), characteristic_lookup[ANALYTE], ANALYTE),
       "Characteristic Name User Supplied" = NA,
-      "Method Speciation" = case_when(
-        ANALYTE == "Nitrate as N" ~ "as N",
-        ANALYTE == "Phosphorus, total" ~ "as P",
-        ANALYTE == "Nitrate + Nitrite as N" ~ "as N",
-        TRUE ~ NA_character_
-      ),
+      "Method Speciation" = ifelse(
+        ANALYTE %in% names(method_speciation_lookup), method_speciation_lookup[ANALYTE], NA),
       "Result Detection Condition" = case_when(
         Result == "ND" ~ "Not Detected",
         Result == "Absent" ~ "Not Present",
@@ -579,7 +456,8 @@ partial_clean_alpha_lab <- reactive({
       "Statistical Base Code" = NA,
       "ResultTimeBasis" = NA,
       "Result Value Type" = ifelse(is.na(Result), NA_character_, "Actual"),
-      "Result Analytical Method ID" = ifelse(is.na(METHODNAME), NA_character_, method_id_lookup[METHODNAME]),
+      "Result Analytical Method ID" = ifelse(
+        is.na(METHODNAME), NA_character_, method_id_lookup[METHODNAME]),
       "Activity ID (CHILD-subset)" = make_activity_id(
         location_id = `Monitoring Location ID`,
         date = `Activity Start Date`,
@@ -668,7 +546,9 @@ downloadHandler(
 
 ## Data Upload To CDX-WQX
 
-The 'Upload WQX File Path' is automatically populated with the location of the downloaded CSV file from the previous step. Please double-check and make sure the file is in the default Downloads folder. If it is not, enter the full location of the file.
+The 'Upload WQX File Path' is automatically populated with the file path of the downloaded CSV file from the previous step. Please double-check and make sure the file is in the default Downloads folder. If it is not, enter the full location of the file.
+
+The 'CDX Account Info Path' is also automatically populated with the file path of the CSV file containing your WQX API Key, Username, and Config ID. Please double check the file is in the big_valley_wax folder.  
 
 Use the 'Upload To WQX' button below to directly upload the previously downloaded data to CDX. It will take a few seconds for the upload status to show up. Once it does, you may close the markdown. CDX will send an email to the user with the final status once the upload finishes.
 
@@ -686,26 +566,30 @@ file_path <-
     "\\\\",
     "/"
   )
-
+file_path_to_cdx_account <- paste0(getwd(), "/cdx-account-info.csv")
 textInput("wqx_upload", "Upload WQX File Path", value = file_path)
+textInput("cdx_account_info_file", "CDX Account Info File Path", value = file_path_to_cdx_account)
 actionButton("button", "Upload To WQX")
 
 conditionalPanel(condition="$('html').hasClass('shiny-busy')",
                             tags$div(HTML("<b> Starting WQX upload. Please wait 25 seconds for the upload status from CDX...</b>"),id="loadmessage"))
 
 upload_data_resp <- eventReactive(input$button, {
-  API_KEY = Sys.getenv("WQX_API_KEY")
-  USER_ID = "INIGOPENG"
+  login_info <- read_csv(input$cdx_account_info_file)
+  
+  API_KEY = login_info$WQX_API_KEY
+  USER_ID = login_info$USER_ID
+  CONFIG_ID = login_info$CONFIG_ID
   FILE_PATH = input$wqx_upload
   FILE_NAME =  paste("alpha-lab-data-", unique_signature, ".csv", sep = "")
-  config_id = 8030
+  
   session <- cdx(USER_ID, API_KEY, FILE_PATH, FILE_NAME)
   file_id <- cdx_upload(session = session)
   dataset_id <-
     cdx_import(
       session = session,
       file_id = file_id,
-      config_id = config_id,
+      config_id = CONFIG_ID,
       params = c("newOrExistingData", "0")
     )
 
