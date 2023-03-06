@@ -417,7 +417,7 @@ partial_clean_alpha_lab <- reactive({
   
   all_files <- all_files() |>
     mutate(
-      "Project ID" = "SW",
+      "Project ID" = project_id_lookup[SAMPLENAME],
       "Monitoring Location ID" = SAMPLENAME,
       "Activity ID User Supplied (PARENTs)" = NA,
       "Activity Type" = "Sample-Routine",

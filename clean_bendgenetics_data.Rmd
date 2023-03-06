@@ -357,7 +357,7 @@ bend_labs_data_column <- bend_labs_data |>
 clean_bend <- reactive({
   
   all_files <- all_files() |>
-  mutate("Project ID" = "HAB",
+  mutate("Project ID" = project_id_lookup[Location],
          # Not all locations are recorded in master monitoring plan:
         # Benthic LUC01, OA04, LA03
          "Monitoring Location ID" = Location,
