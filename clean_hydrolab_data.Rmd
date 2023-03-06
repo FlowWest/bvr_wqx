@@ -38,8 +38,7 @@ library(DT)
 library(utf8)
 library(wqxWeb)
 library(emo)
-# reticulate::use_condaenv("r-reticulate")
-# Sys.setenv(WQX_API_KEY = "")
+reticulate::use_condaenv("r-reticulate")
 ```
 
 ```{r, include=FALSE}
