@@ -33,7 +33,7 @@ library(readr)
 library(wqxWeb)
 library(utf8)
 library(emo)
-reticulate::use_condaenv("r-reticulate")
+# reticulate::use_condaenv("r-reticulate")
 ```
 
 ```{r, include=FALSE}
@@ -278,7 +278,7 @@ check_missing_data_in_target <- function() {
 check_locations_in_lookup <- function(){
   result <- ifelse(all(all_files()$Location %in% names(project_id_lookup)), TRUE, FALSE)
   
-  return(list(result = result, description="Checking 'Location' column all in listed Project Sites"))
+  return(list(result = result, description="Checking for 'Location' column in listed Project Sites"))
 }
 
 ```

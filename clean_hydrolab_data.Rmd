@@ -38,7 +38,7 @@ library(DT)
 library(utf8)
 library(wqxWeb)
 library(emo)
-reticulate::use_condaenv("r-reticulate")
+# reticulate::use_condaenv("r-reticulate")
 ```
 
 ```{r, include=FALSE}
@@ -231,16 +231,16 @@ all_files <- reactive({
   regex_pattern <- "\\w+$"
   location_id <- unlist(str_extract_all(location,
                                         regex_pattern))
-  # print(location_id)
-  raw_results_data <-
+
+    raw_results_data <-
     read_csv(input$hydro_lab_files$datapath,
              skip = 5,
              col_types = "c") |>
-    mutate("location_id" = location_id) |>
-    mutate_if(is.character, utf8::utf8_encode) |>     select(-c(3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29)) |> 
+    mutate_if(is.character, utf8::utf8_encode) |>    
+    mutate("location_id" = location_id) |> 
+    select(-c(3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27)) |> 
     filter(str_count(Date, "\\d+") > 2)
 
-  
   return (raw_results_data)
   
 })
@@ -249,6 +249,8 @@ renderDataTable(
   all_files(), 
   options=list(scrollX=T)
 )
+
+
 ```
 
 ## QA/QC
@@ -266,10 +268,17 @@ check_missing_data_temp <- function() {
 }
 
 check_locations_in_lookup <- function(){
-  result <- ifelse(all(all_files()$Location %in% names(project_id_lookup)), TRUE, FALSE)
+  result <- ifelse(all(all_files()$location_id %in% names(project_id_lookup)), TRUE, FALSE)
   
-  return(list(result = result, description="Checking 'Location' column all in listed Project Sites"))
+  return(list(result = result, description="Checking for 'Location' column in listed Project Sites"))
 }
+
+# check_project_in_lookup <- function(){
+#   result <- ifelse(all(all_files()$location_id %in% names(project_id_lookup)), TRUE, FALSE)
+#   
+#   return(list(result = result, description="Checking 'Location' column all in listed Project Sites"))
+# }
+
 
 ```
 ```{r}
@@ -358,6 +367,7 @@ We will then rename the water quality variables into WQX-appropriate water quali
 partial_clean_hydrolab <- reactive({
   
   req(input$hydro_lab_files)
+  
 
   all_files <- all_files() |> 
   select(-c("IBVSvr4", "CHL", "PCY")) |>

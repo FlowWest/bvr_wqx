@@ -40,7 +40,7 @@ library(DT)
 library(shiny)
 library(stringr)
 library(emo)
-reticulate::use_condaenv("r-reticulate")
+# reticulate::use_condaenv("r-reticulate")
 
 ```
 ```{r, include=FALSE}
@@ -302,15 +302,10 @@ check_spikelevel_has_no_missing <- function() {
   )
 }
 
-check_unique_values <- function(){
-  data <- all_files()
+check_locations_in_lookup <- function(){
+  result <- ifelse(all(all_files()$SAMPLENAME %in% names(project_id_lookup)), TRUE, FALSE)
   
-  return(
-    list(
-      description = "Unique water quality analytes collected in the 'ANALYTE' column:",
-      result = unique(data$ANALYTE)
-    )
-  )
+  return(list(result = result, description="Checking for 'Location' column in listed Project Sites"))
 }
 ```
 
@@ -338,7 +333,8 @@ qaqc_funcs <- list(
   check_missing_data_in_sample_name,
   check_results_has_no_missing,
   check_units_has_no_missing,
-  check_spikelevel_has_no_missing
+  check_spikelevel_has_no_missing,
+  check_locations_in_lookup
 )
 
 renderUI(
