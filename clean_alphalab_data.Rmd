@@ -40,7 +40,7 @@ library(DT)
 library(shiny)
 library(stringr)
 library(emo)
-# reticulate::use_condaenv("r-reticulate")
+reticulate::use_condaenv("r-reticulate")
 
 ```
 ```{r, include=FALSE}

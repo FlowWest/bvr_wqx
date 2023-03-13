@@ -33,7 +33,7 @@ library(readr)
 library(wqxWeb)
 library(utf8)
 library(emo)
-# reticulate::use_condaenv("r-reticulate")
+reticulate::use_condaenv("r-reticulate")
 ```
 
 ```{r, include=FALSE}
