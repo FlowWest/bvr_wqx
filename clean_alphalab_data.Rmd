@@ -40,7 +40,7 @@ library(DT)
 library(shiny)
 library(stringr)
 library(emo)
-reticulate::use_condaenv("r-reticulate")
+# reticulate::use_condaenv("r-reticulate")
 
 ```
 ```{r, include=FALSE}
@@ -142,7 +142,7 @@ project_id_lookup <- c(
 unit_lookup <- c(
   "Temperature, water" = "deg C", 
   "Specific conductance" = "mS/cm", 
-  "Resistivity" = "KOhm/cm", 
+  "Resistivity" = "KOhm-cm", 
   "Salinity" = "ppt", 
   "Total dissolved solids" = "g/L", 
   "Dissolved oxygen saturation" = "%",
@@ -307,6 +307,27 @@ check_locations_in_lookup <- function(){
   
   return(list(result = result, description="Checking for 'Location' column in listed Project Sites"))
 }
+
+check_oil_range <- function() {
+  
+  alpha_with_results <- all_files() |> 
+    filter(all_files()$`Result` != "ND")
+  
+  if ("Oil & Grease (HEM)" %in% alpha_with_results$ANALYTE){
+    result <- with(
+      all_files() |> filter(all_files()$`ANALYTE` == "Oil & Grease (HEM)"),
+      all(as.numeric(Result) <= 3000 & as.numeric(Result) >= 0))
+    
+    return(
+      list(result = result, description = "Checking for 'Oil & Grease' smaller than 3000 mg/L and bigger than 0")
+    )
+  }else{
+   return(list(result = "False", description = "Checking for Oil & Grease has missing values"))
+  }
+
+}
+
+
 ```
 
 
@@ -334,7 +355,8 @@ qaqc_funcs <- list(
   check_results_has_no_missing,
   check_units_has_no_missing,
   check_spikelevel_has_no_missing,
-  check_locations_in_lookup
+  check_locations_in_lookup,
+  check_oil_range
 )
 
 renderUI(

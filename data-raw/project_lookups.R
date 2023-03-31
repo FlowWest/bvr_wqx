@@ -97,7 +97,7 @@ project_id_lookup <- c(
 unit_lookup <- c(
   "Temperature, water" = "deg C", 
   "Specific conductance" = "mS/cm", 
-  "Resistivity" = "KOhm/cm", 
+  "Resistivity" = "KOhm-cm", 
   "Salinity" = "ppt", 
   "Total dissolved solids" = "g/L", 
   "Dissolved oxygen saturation" = "%",

@@ -38,7 +38,7 @@ library(DT)
 library(utf8)
 library(wqxWeb)
 library(emo)
-reticulate::use_condaenv("r-reticulate")
+# reticulate::use_condaenv("r-reticulate")
 ```
 
 ```{r, include=FALSE}
@@ -140,7 +140,7 @@ project_id_lookup <- c(
 unit_lookup <- c(
   "Temperature, water" = "deg C", 
   "Specific conductance" = "mS/cm", 
-  "Resistivity" = "KOhm/cm", 
+  "Resistivity" = "KOhm-cm", 
   "Salinity" = "ppt", 
   "Total dissolved solids" = "g/L", 
   "Dissolved oxygen saturation" = "%",
@@ -241,10 +241,14 @@ all_files <- reactive({
     select(-c(3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27)) |>
     mutate("location_id" = location_id) |>
     filter(str_count(Date, "\\d+") > 2)
-
+  
   return (raw_results_data)
   
 })
+
+renderPrint(
+  colnames(all_files())
+)
 
 renderDataTable(
   all_files(), 
@@ -262,23 +266,94 @@ Here are a few basic QA/QC processes to make sure that the data is in the right 
 # ADD QA FUNCTION HERE ---------------------------------------------------------------
 # an example of qa qc function, it MUST return a result T/F and a description string
 
-check_missing_data_temp <- function() {
-  result <- ifelse(any(is.na(all_files()$Temp)), FALSE, TRUE)
-  
-  return(list(result = result, description="Checking for missing data in 'Temp' column"))
-}
-
 check_locations_in_lookup <- function(){
   result <- ifelse(all(all_files()$location_id %in% names(project_id_lookup)), TRUE, FALSE)
   
-  return(list(result = result, description="Checking for 'Location' column in listed Project Sites"))
+  return(list(result = result, description= "Checking for 'Location' column in listed Project Sites"))
 }
 
-# check_project_in_lookup <- function(){
-#   result <- ifelse(all(all_files()$location_id %in% names(project_id_lookup)), TRUE, FALSE)
-#   
-#   return(list(result = result, description="Checking 'Location' column all in listed Project Sites"))
-# }
+check_temperature_range <- function(){
+  result <- with(all_files(),
+     all(as.numeric(all_files()$Temp) <= 50 & as.numeric(all_files()$Temp) >= -10))
+  
+  return(list(result = result, description="Checking for 'Temperature' column smaller than 50 Celsius and bigger than -10 Celsius"))
+}
+
+check_depth_range <- function(){
+  result <- with(all_files(),
+     all(all_files()$Depth10 <= 50 & all_files()$Depth10 >= -10))
+
+  return(list(result = result, description="Checking for 'Depth' column smaller than 50m and bigger than -10m"))
+}
+check_specific_conductivity_range <- function(){
+  result <- with(all_files(),
+     all(as.numeric(all_files()$SpCond) <= 500 & as.numeric(all_files()$SpCond) >= 0))
+  
+  return(list(result = result, description="Checking for 'Specific Conductivity' column smaller than 500 mS/cm and bigger than 0 mS/cm"))
+}
+
+check_resistivity_range <- function() {
+  result <- with(all_files(),
+                 all(as.numeric(all_files()$Res) <= 50 &
+                   as.numeric(all_files()$Res) >= 0))
+  return(
+    list(result = result, description = "Checking for 'Resistivity' column smaller than 50 KOhm-cm	 and bigger than 0 KOhm-cm")
+  )
+}
+
+check_salinity_range <- function() {
+  result <- with(all_files(),
+                 all(as.numeric(all_files()$Sal) <= 50 &
+                   as.numeric(all_files()$Sal) >= 0))
+  return(
+    list(result = result, description = "Checking for 'Salinity' column smaller than 50 ppt	 and bigger than 0 ppt")
+  )
+}
+
+check_dissolved_solid_range <- function() {
+  result <- with(all_files(),
+                 all(as.numeric(all_files()$TDS) <= 3 &
+                   as.numeric(all_files()$TDS) >= 0))
+  return(
+    list(result = result, description = "Checking for 'Total Dissolved Solids' column smaller than 3 g/L and bigger than 0 g/L")
+  )
+}
+
+check_oxygen_saturation_range <- function() {
+  result <- with(all_files(),
+                 all(as.numeric(all_files()$`DO%`) <= 500 &
+                   as.numeric(all_files()$`DO%`) >= 0))
+  return(
+    list(result = result, description = "Checking for 'Dissolved Oxygen saturation' column smaller than 500% and bigger than 0%")
+  )
+}
+
+check_oxygen_range <- function() {
+  result <- with(all_files(),
+                 all(as.numeric(all_files()$DO) <= 20 &
+                   as.numeric(all_files()$DO) >= 0))
+  return(
+    list(result = result, description = "Checking for 'Dissolved Oxygen' column smaller than 20 mg/L and bigger than 0 mg/L")
+  )
+}
+
+check_ph_range <- function() {
+  result <- with(all_files(),
+                 all(as.numeric(all_files()$pH) <= 10 &
+                   as.numeric(all_files()$pH) >= 0))
+  return(
+    list(result = result, description = "Checking for 'pH' column smaller than 10 and bigger than 0")
+  )
+}
+
+check_turbidity_range <- function() {
+  result <- with(all_files(),
+                 all(as.numeric(all_files()$Turb) <= 1000 &
+                   as.numeric(all_files()$Turb) >= 0))
+  return(
+    list(result = result, description = "Checking for 'Turbidity' column smaller than 1000 NTU and bigger than 0 NTU")
+  )
+}
 
 
 ```
@@ -299,8 +374,17 @@ apply_qaqc <- function(qaqc_list) {
 }
 
 qaqc_funcs <- list(
-  check_missing_data_temp,
-  check_locations_in_lookup
+  check_locations_in_lookup,
+  check_temperature_range,
+  check_depth_range,
+  check_specific_conductivity_range,
+  check_resistivity_range,
+  check_salinity_range,
+  check_dissolved_solid_range,
+  check_oxygen_saturation_range,
+  check_oxygen_range,
+  check_ph_range,
+check_turbidity_range
 )
 
 renderUI(
