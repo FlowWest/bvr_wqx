@@ -33,7 +33,7 @@ library(readr)
 library(wqxWeb)
 library(utf8)
 library(emo)
-# reticulate::use_condaenv("r-reticulate")
+reticulate::use_condaenv("r-reticulate")
 ```
 
 ```{r, include=FALSE}
@@ -269,10 +269,10 @@ Here are a few basic QA/QC processes to make sure that the data is in the right 
 ```{r}
 # ADD QA FUNCTION HERE ---------------------------------------------------------------
 # an example of qa qc function, it MUST return a result T/F and a description string
-check_missing_data_in_target <- function() {
-  result <- ifelse(any(is.na(all_files()$Target)), FALSE, TRUE)
+check_missing_data_in_result <- function() {
+  result <- ifelse(any(all_files()$Result == "ND"), FALSE, TRUE)
   
-  return(list(result = result, description="Checking for missing data in 'TARGET' column"))
+  return(list(result = result, description="Checking for no data (ND) in 'Result' column"))
 }
 
 check_locations_in_lookup <- function(){
@@ -281,6 +281,106 @@ check_locations_in_lookup <- function(){
   return(list(result = result, description="Checking for 'Location' column in listed Project Sites"))
 }
 
+check_anat_range <- function() {
+  
+  bend_with_results <- all_files() |> 
+    filter(all_files()$`Result` != "ND")
+  
+  
+  if ("Anatoxin-a" %in% bend_with_results$Target){
+    bend_with_results <- bend_with_results |> filter(
+      bend_with_results$Target == "Anatoxin-a")
+    result <- with(
+      bend_with_results,
+      all(as.numeric(bend_with_results$Result) < 2000 & as.numeric(bend_with_results$Result) > 0))
+    
+    return(
+      list(result = result, description = "Checking for 'Anatoxin-a' smaller than 2000 ng/g and bigger than 0 ng/g")
+    )
+  }
+  
+}
+
+check_cysp_range <- function() {
+  
+  bend_with_results <- all_files() |> 
+    filter(all_files()$`Result` != "ND")
+  
+  
+  if ("Cylindrospermopsin" %in% bend_with_results$Target){
+    bend_with_results <- bend_with_results |> filter(
+      bend_with_results$Target == "Cylindrospermopsin")
+    result <- with(
+      bend_with_results,
+      all(as.numeric(bend_with_results$Result) < 2000 & as.numeric(bend_with_results$Result) > 0))
+    
+    return(
+      list(result = result, description = "Checking for 'Cylindrospermopsin' smaller than 2000 ng/g and bigger than 0 ng/g")
+    )
+  }
+  
+}
+
+check_micy_nod_range <- function() {
+  
+  bend_with_results <- all_files() |> 
+    filter(all_files()$`Result` != "ND")
+  
+  
+  if ("Microcystin/Nod." %in% bend_with_results$Target){
+    bend_with_results <- bend_with_results |> filter(
+      bend_with_results$Target == "Microcystin/Nod.")
+    result <- with(
+      bend_with_results,
+      all(as.numeric(bend_with_results$Result) < 2000 & as.numeric(bend_with_results$Result) > 0))
+    
+    return(
+      list(result = result, description = "Checking for 'Microcystin/Nod.' smaller than 2000 ng/g and bigger than 0 ng/g")
+    )
+  }
+  
+}
+
+check_saxtx_range <- function() {
+  
+  bend_with_results <- all_files() |> 
+    filter(all_files()$`Result` != "ND")
+  
+  
+  if ("Saxitoxin" %in% bend_with_results$Target){
+    bend_with_results <- bend_with_results |> filter(
+      bend_with_results$Target == "Saxitoxin")
+    result <- with(
+      bend_with_results,
+      all(as.numeric(bend_with_results$Result) < 2000 & as.numeric(bend_with_results$Result) > 0))
+    
+    return(
+      list(result = result, description = "Checking for 'Saxitoxin' smaller than 2000 ng/g and bigger than 0 ng/g")
+    )
+  }
+  
+}
+
+check_micys_range <- function() {
+  
+  bend_with_results <- all_files() |> 
+    filter(all_files()$`Result` != "ND")
+  
+  
+  if ("Microcystin" %in% bend_with_results$Target){
+    bend_with_results <- bend_with_results |> filter(
+      bend_with_results$Target == "Microcystin")
+    View(bend_with_results)
+    result <- with(
+      bend_with_results,
+      all(as.numeric(gsub(",", "",bend_with_results$Result)) < 300000 & as.numeric(gsub(",", "",bend_with_results$Result)) > 0))
+    
+    return(
+      list(result = result, description = "Checking for 'Microcystin' smaller than 300,000 copies/mL and bigger than 0 copies/mL")
+    )
+  }
+  
+}
 ```
 
 ```{r, echo=FALSE}
@@ -302,8 +402,13 @@ apply_qaqc <- function(qaqc_list) {
 }
 # populate this list with all qaqc funcs to apply
 qaqc_funcs <- list(
-  check_missing_data_in_target,
-  check_locations_in_lookup
+  check_missing_data_in_result,
+  check_locations_in_lookup,
+  check_anat_range,
+  check_cysp_range,
+  check_micy_nod_range,
+  check_saxtx_range,
+  check_micys_range
 )
 
 renderUI(
@@ -381,7 +486,7 @@ clean_bend <- reactive({
          "Characteristic Name User Supplied" = NA,
          "Method Speciation" = NA,
          "Result Detection Condition" = ifelse(Result == "ND", "Not Detected", NA),
-         "Result Value" = ifelse(Result == "ND", NA, Result),
+         "Result Value" = ifelse(Result == "ND", NA, gsub(",", "", Result)),
          "Result Unit" = ifelse(Result == "ND", NA, Units),
          "Result Measure Qualifier" = NA,
          "Result Sample Fraction" = "Total",

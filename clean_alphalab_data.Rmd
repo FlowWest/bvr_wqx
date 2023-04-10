@@ -40,7 +40,7 @@ library(DT)
 library(shiny)
 library(stringr)
 library(emo)
-# reticulate::use_condaenv("r-reticulate")
+reticulate::use_condaenv("r-reticulate")
 
 ```
 ```{r, include=FALSE}
@@ -182,7 +182,8 @@ characteristic_lookup <- c(
   "Phosphorus, total" = "Phosphorus",
   "Total Organic Carbon" = "Organic carbon",
   "E. Coli" = "Escherichia coli",
-  "Nitrate + Nitrite as N" = "Nitrate + Nitrite"
+  "Nitrate + Nitrite as N" = "Nitrate + Nitrite",
+  "Total Kjeldahl Nitrogen" = "Kjeldahol Nitrogen"
 )
 
 method_speciation_lookup <- c(
@@ -230,6 +231,12 @@ all_files <- reactive({
   return (raw_alpha_lab)
 })
 
+unique_analytes <- reactive({
+  req(input$alpha_files)
+  print(unique(all_files()$ANALYTE))
+  
+})
+
 renderDataTable(
   all_files(), 
   options=list(scrollX=T)
@@ -270,37 +277,11 @@ check_missing_data_in_sample_name <- function() {
 
 
 check_results_has_no_missing <- function() {
-  data <- all_files()
+  result <- ifelse(any(all_files()$Result == "ND"), FALSE, TRUE)
   
-  return(
-    list(
-      result = sum(is.na(data$Result)) == 0,
-      description = "Checking for missing data in 'RESULTS'"
-    )
-  )
+  return(list(result = result, description="Checking for no data (ND) in 'Results' column"))
 }
 
-check_units_has_no_missing <- function() {
-  data <- all_files()
-  
-  return(
-    list(
-      result = sum(is.na(data$UNITS)) == 0,
-      description = "Checking for missing data in 'UNITS'"
-    )
-  )
-}
-
-check_spikelevel_has_no_missing <- function() {
-  data <- all_files()
-  
-  return(
-    list(
-      result = sum(is.na(data$SPIKELEVEL)) == 0,
-      description = "Checking for missing data in 'SPIKELEVEL'"
-    )
-  )
-}
 
 check_locations_in_lookup <- function(){
   result <- ifelse(all(all_files()$SAMPLENAME %in% names(project_id_lookup)), TRUE, FALSE)
@@ -308,26 +289,181 @@ check_locations_in_lookup <- function(){
   return(list(result = result, description="Checking for 'Location' column in listed Project Sites"))
 }
 
+
+check_p_no_data <- function(){
+   alpha_without_results <- all_files() |>
+    filter(all_files()$`Result` == "ND")
+
+   result <- ifelse("Phosphorus, total" %in% alpha_without_results$ANALYTE, FALSE, TRUE)
+
+   return(list(result = result, description = "Checking for no data (ND) in 'Phosphorus, total'"))
+
+}
+
+check_n_no_data <- function(){
+   alpha_without_results <- all_files() |>
+    filter(all_files()$`Result` == "ND")
+
+   result <- ifelse("Nitrate + Nitrite as N" %in% alpha_without_results$ANALYTE, FALSE, TRUE)
+
+   return(list(result = result, description = "Checking for no data (ND) in 'Nitrate + Nitrite as N'"))
+
+}
+
+check_oil_no_data <- function(){
+   alpha_without_results <- all_files() |>
+    filter(all_files()$`Result` == "ND")
+
+   result <- ifelse("Oil & Grease (HEM)" %in% alpha_without_results$ANALYTE, FALSE, TRUE)
+
+   return(list(result = result, description = "Checking for no data (ND) in 'Oil & Grease (HEM)'"))
+
+}
+
+
+check_c_no_data <- function(){
+   alpha_without_results <- all_files() |>
+    filter(all_files()$`Result` == "ND")
+
+   result <- ifelse("Total Organic Carbon" %in% alpha_without_results$ANALYTE, FALSE, TRUE)
+
+   return(list(result = result, description = "Checking for no data (ND) in 'Total Organic Carbon'"))
+
+}
+
+
+check_n_range <- function() {
+  
+  alpha_with_results <- all_files() |> 
+    filter(all_files()$`Result` != "ND")
+  
+  
+  if ("Nitrate + Nitrite as N" %in% alpha_with_results$ANALYTE){
+    alpha_with_results <- alpha_with_results |> filter(alpha_with_results$`ANALYTE` == "Nitrate + Nitrite as N")
+    result <- with(
+      alpha_with_results,
+      all(as.numeric(alpha_with_results$Result) < 10 & as.numeric(alpha_with_results$Result) > 0))
+    
+    return(
+      list(result = result, description = "Checking for 'Nitrate and Nitrite as N' smaller than 10 mg/L and bigger than 0 mg/L")
+    )
+  }
+  
+}
+
+
 check_oil_range <- function() {
   
   alpha_with_results <- all_files() |> 
     filter(all_files()$`Result` != "ND")
   
   if ("Oil & Grease (HEM)" %in% alpha_with_results$ANALYTE){
+    alpha_with_results <- alpha_with_results |> filter(alpha_with_results$`ANALYTE` == "Oil & Grease (HEM)")
+                                                       
     result <- with(
-      all_files() |> filter(all_files()$`ANALYTE` == "Oil & Grease (HEM)"),
-      all(as.numeric(Result) <= 3000 & as.numeric(Result) >= 0))
+      alpha_with_results,
+      all(as.numeric(alpha_with_results$Result) < 3000 & as.numeric(alpha_with_results$Result) > 0))
     
     return(
-      list(result = result, description = "Checking for 'Oil & Grease' smaller than 3000 mg/L and bigger than 0")
+      list(result = result, description = "Checking for 'Oil & Grease' smaller than 3000 mg/L and bigger than 0 mg/L")
     )
-  }else{
-   return(list(result = "False", description = "Checking for Oil & Grease has missing values"))
   }
-
 }
 
+check_p_range <- function() {
+  
+  alpha_with_results <- all_files() |> 
+    filter(all_files()$`Result` != "ND")
+  
+  
+  if ("Phosphorus, total" %in% alpha_with_results$ANALYTE){
+    alpha_with_results <- alpha_with_results |> filter(alpha_with_results$`ANALYTE` == "Phosphorus, total")
+    result <- with(
+      alpha_with_results,
+      all(as.numeric(alpha_with_results$Result) < 2 & as.numeric(alpha_with_results$Result) > 0))
+    
+    return(
+      list(result = result, description = "Checking for 'Phosphorus, total' smaller than 2 mg/L and bigger than 0 mg/L")
+    )
+  }
+  
+}
 
+check_c_range <- function() {
+  
+  alpha_with_results <- all_files() |> 
+    filter(all_files()$`Result` != "ND")
+  
+  
+  if ("Total Organic Carbon" %in% alpha_with_results$ANALYTE){
+    alpha_with_results <- alpha_with_results |> filter(alpha_with_results$`ANALYTE` == "Total Organic Carbon")
+    result <- with(
+      alpha_with_results,
+      all(as.numeric(alpha_with_results$Result) < 10 & as.numeric(alpha_with_results$Result) > 0))
+    
+    return(
+      list(result = result, description = "Checking for 'Total Organic Carbon' smaller than 10 mg/L and bigger than 0 mg/L")
+    )
+  }
+  
+}
+
+check_tot_coli_range <- function() {
+  
+  alpha_with_results <- all_files() |> 
+    filter(all_files()$`Result` != "ND")
+  
+  
+  if ("Total Coliform" %in% alpha_with_results$ANALYTE){
+    alpha_with_results <- alpha_with_results |> filter(alpha_with_results$`ANALYTE` == "Total Coliform")
+    result <- with(
+      alpha_with_results,
+      all(as.numeric(alpha_with_results$Result) < 300000 & as.numeric(alpha_with_results$Result) > 0))
+    
+    return(
+      list(result = result, description = "Checking for 'Total Coliform' smaller than 300000 MPN/100mL and bigger than 0 MPN/100mL")
+    )
+  }
+  
+}
+
+check_fec_coli_range <- function() {
+  
+  alpha_with_results <- all_files() |> 
+    filter(all_files()$`Result` != "ND")
+  
+  
+  if ("Fecal Coliform" %in% alpha_with_results$ANALYTE){
+    alpha_with_results <- alpha_with_results |> filter(alpha_with_results$`ANALYTE` == "Fecal Coliform")
+    result <- with(
+      alpha_with_results,
+      all(as.numeric(alpha_with_results$Result) < 300000 & as.numeric(alpha_with_results$Result) > 0))
+    
+    return(
+      list(result = result, description = "Checking for 'Fecal Coliform' smaller than 300000 MPN/100mL and bigger than 0 MPN/100mL")
+    )
+  }
+  
+}
+
+check_kn_range <- function() {
+  
+  alpha_with_results <- all_files() |> 
+    filter(all_files()$`Result` != "ND")
+  
+  
+  if ("Total Kjeldahl Nitrogen" %in% alpha_with_results$ANALYTE){
+    alpha_with_results <- alpha_with_results |> filter(alpha_with_results$`ANALYTE` == "Total Kjeldahl Nitrogen")
+    result <- with(
+      alpha_with_results,
+      all(as.numeric(alpha_with_results$Result) < 10 & as.numeric(alpha_with_results$Result) > 0))
+    
+    return(
+      list(result = result, description = "Checking for 'Total Kjeldahl Nitrogen' smaller than 10 mg/L and bigger than 0 mg/L")
+    )
+  }
+  
+}
 ```
 
 
@@ -348,15 +484,25 @@ apply_qaqc <- function(qaqc_list) {
   })
   
 }
-# populate this list with all qaqc funcs to apply
+
+
+  # populate this list with all qaqc funcs to apply
+
 qaqc_funcs <- list(
   check_correct_project_name, 
-  check_missing_data_in_sample_name,
-  check_results_has_no_missing,
-  check_units_has_no_missing,
-  check_spikelevel_has_no_missing,
   check_locations_in_lookup,
-  check_oil_range
+  check_results_has_no_missing,
+  # check_n_no_data,
+  check_n_range,
+  # check_p_no_data,
+  check_p_range,
+  # check_c_no_data,
+  check_c_range,
+  # check_oil_no_data,
+  check_oil_range,
+  check_fec_coli_range,
+  check_tot_coli_range,
+  check_kn_range
 )
 
 renderUI(
