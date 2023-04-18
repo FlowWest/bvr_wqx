@@ -33,104 +33,10 @@ library(readr)
 library(wqxWeb)
 library(utf8)
 library(emo)
-reticulate::use_condaenv("r-reticulate")
+# reticulate::use_condaenv("r-reticulate")
 ```
 
 ```{r, include=FALSE}
-project_id_lookup <- c(
-  "M1" = "MS",
-  "M2" = "MS",
-  "M3" = "MS",
-  "M4" = "MS",
-  "HSP" = "SW",
-  "BVSWD1" = "SW",
-  "NBPRSC" = "SW",
-  "RSTCC" = "SW",
-  "BVCL1" = "SW",
-  "BVRTC1" = "SW",
-  "BVRTCC" = "SW",
-  "BVSWDRV" = "SW",#not in cdx
-  "RVSI1" = "SW",#not in cdx
-  "RVSI2" = "SW",#not in cdx
-  "BVCL2" = "CLM",	
-  "BVCL3" = "CLM",	
-  "BVCL5" = "CLM",	
-  "BVCL6" = "CLM",	
-  "BVCL11" = "CLM",	
-  "BVCL12" = "CLM",	
-  "BVCL13" = "CLM",	
-  "BVCL14" = "CLM",	
-  "BVCL15" = "CLM",	
-  "BVCL16" = "CLM",	
-  "BVCL17" = "CLM",	
-  "BVCL18" = "CLM",	
-  "BVCL19" = "CLM",	
-  "BVCL20" = "CLM",
-  "FC1" = "CS", 
-  "FC2" = "CS",
-  "FC3" = "CS",#not in cdx
-  "MC1" = "CS",
-  "MC2" = "CS",
-  "TC1" = "CS",
-  "AC1" = "CS",
-  "AC2" = "CS",
-  "AC3" = "CS",
-  "AC4" = "CS",
-  "MCC1" = "CS",
-  "KC1" = "CS",
-  "CC1" = "CS",
-  "SC1" = "CS",
-  "SC2" = "CS",#not in cdx
-  "SHC2"= "CS",#not in cdx
-  "CC2" = "CS",#not in cdx
-  "SIEG01" = "CS",#not in cdx
-  "COOP01" = "CS",#not in cdx
-  "CLOV01" = "CS",#not in cdx
-  "DRY01" = "CS",#not in cdx
-  "COY01" = "CS",#not in cdx
-  "SCOT01"= "CS",#not in cdx
-  "AND01" = "CS",#not in cdx
-  "NFORK01" = "CS",#not in cdx
-  "LONG01" = "CS", #not in cdx
-  "PUT01" = "CS", #not in cdx
-  "MID01"= "CS", #not in cdx
-  "KC5"= "CS", #not in cdx
-  "AP01" = "HAB",
-  "BP" = "HAB",
-  "CLOAKS01" = "HAB",
-  "CLV7" = "HAB",
-  "CP" = "HAB",
-  "ELEM01" = "HAB",
-  "GH" = "HAB",
-  "HB" = "HAB",
-  "JB" = "HAB",
-  "KEYS01" = "HAB",
-  "KEYS03" = "HAB",
-  "KP01" = "HAB",
-  "LC01" = "HAB",
-  "LPTNT" = "HAB",
-  "LS" = "HAB",
-  "LS2" = "HAB",
-  "LUC01" = "HAB",
-  "RED01" = "HAB",
-  "RODS" = "HAB",
-  "SBMMEL01" = "HAB",
-  "SHADY01" = "HAB",
-  "UBL" = "HAB",
-  "CL-1" = "HAB",
-  "CL-3" = "HAB",
-  "CL-4" = "HAB",
-  "CL-5" = "HAB",
-  "LA-03" = "HAB",
-  "NR-02" = "HAB",
-  "OA-04" = "HAB",
-  "UA-01" = "HAB",
-  "UA-06" = "HAB",
-  "UA-07" = "HAB",
-  "UA-08" = "HAB",
-  "PILLS01" = "HAB", #not in cdx
-  "LAKEPILS01" = "HAB" #not in cdx
-  )
 
 unit_lookup <- c(
   "Temperature, water" = "deg C", 
@@ -214,6 +120,13 @@ fileInput("bend_files",
           "Choose Bend Genetics CSV File",
           multiple = FALSE)
 
+file_path_to_project_id <- paste0(getwd(), "/project-id-lookup.csv")
+textInput("project_id_lookup_file", "Project ID Look Up File Path", value = file_path_to_project_id)
+
+project_id_lookup <- reactive({
+  project_id_csv <- read_csv(input$project_id_lookup_file)
+  project_id_vec <- project_id_csv |> pull(project_id, location)
+})
 
 all_files <- reactive({
   req(input$bend_files)
@@ -237,7 +150,10 @@ all_files <- reactive({
       Units = Preserved,
       Notes = BG_ID
     ) |> 
-    mutate_if(is.character, utf8::utf8_encode)
+    mutate_if(is.character, utf8::utf8_encode) |> 
+    mutate(
+      Units = ifelse(Units== "\\xb5g/L", "ug/L", Units)
+    )
   
   
   bend_full_df <-
@@ -276,7 +192,7 @@ check_missing_data_in_result <- function() {
 }
 
 check_locations_in_lookup <- function(){
-  result <- ifelse(all(all_files()$Location %in% names(project_id_lookup)), TRUE, FALSE)
+  result <- ifelse(all(all_files()$Location %in% names(project_id_lookup())), TRUE, FALSE)
   
   return(list(result = result, description="Checking for 'Location' column in listed Project Sites"))
 }
@@ -292,10 +208,10 @@ check_anat_range <- function() {
       bend_with_results$Target == "Anatoxin-a")
     result <- with(
       bend_with_results,
-      all(as.numeric(bend_with_results$Result) < 2000 & as.numeric(bend_with_results$Result) > 0))
+      all(as.numeric(bend_with_results$Result) < 1000 ))
     
     return(
-      list(result = result, description = "Checking for 'Anatoxin-a' smaller than 2000 ng/g and bigger than 0 ng/g")
+      list(result = result, description = "Checking for 'Anatoxin-a' smaller than 1000 ng/g")
     )
   }
   
@@ -312,35 +228,60 @@ check_cysp_range <- function() {
       bend_with_results$Target == "Cylindrospermopsin")
     result <- with(
       bend_with_results,
-      all(as.numeric(bend_with_results$Result) < 2000 & as.numeric(bend_with_results$Result) > 0))
+      all(as.numeric(bend_with_results$Result) < 1000))
     
     return(
-      list(result = result, description = "Checking for 'Cylindrospermopsin' smaller than 2000 ng/g and bigger than 0 ng/g")
+      list(result = result, description = "Checking for 'Cylindrospermopsin' smaller than 1000 ng/g")
     )
   }
   
 }
 
-check_micy_nod_range <- function() {
-  
-  bend_with_results <- all_files() |> 
+
+check_micy_nod_ug_range <- function() {
+  bend_with_results <- all_files() |>
     filter(all_files()$`Result` != "ND")
   
   
-  if ("Microcystin/Nod." %in% bend_with_results$Target){
+  if ("Microcystin/Nod." %in% bend_with_results$Target) {
     bend_with_results <- bend_with_results |> filter(
-      bend_with_results$Target == "Microcystin/Nod.")
-    result <- with(
-      bend_with_results,
-      all(as.numeric(bend_with_results$Result) < 2000 & as.numeric(bend_with_results$Result) > 0))
-    
-    return(
-      list(result = result, description = "Checking for 'Microcystin/Nod.' smaller than 2000 ng/g and bigger than 0 ng/g")
+      bend_with_results$Target == "Microcystin/Nod." &
+        bend_with_results$Units == "ug/L"
     )
+    if (nrow(bend_with_results != 0)) {
+      result <- with(bend_with_results,
+                     all(as.numeric(bend_with_results$Result) < 1000))
+      
+      return(
+        list(result = result, description = "Checking for 'Microcystin/Nod.' smaller than 1000 ug/L")
+      )
+    }
   }
   
 }
 
+check_micy_nod_ng_range <- function() {
+  bend_with_results <- all_files() |>
+    filter(all_files()$`Result` != "ND")
+  
+  
+  if ("Microcystin/Nod." %in% bend_with_results$Target) {
+    bend_with_results <- bend_with_results |> filter(
+      bend_with_results$Target == "Microcystin/Nod." &
+        bend_with_results$Units == "ng/g"
+    )
+    if (nrow(bend_with_results != 0)) {
+      result <- with(bend_with_results,
+                     all(as.numeric(bend_with_results$Result) < 1000))
+      
+      return(
+        list(result = result, description = "Checking for 'Microcystin/Nod.' smaller than 1000 ng/g")
+      )
+    }
+    
+  }
+  
+}
 check_saxtx_range <- function() {
   
   bend_with_results <- all_files() |> 
@@ -352,10 +293,10 @@ check_saxtx_range <- function() {
       bend_with_results$Target == "Saxitoxin")
     result <- with(
       bend_with_results,
-      all(as.numeric(bend_with_results$Result) < 2000 & as.numeric(bend_with_results$Result) > 0))
+      all(as.numeric(bend_with_results$Result) < 1000 ))
     
     return(
-      list(result = result, description = "Checking for 'Saxitoxin' smaller than 2000 ng/g and bigger than 0 ng/g")
+      list(result = result, description = "Checking for 'Saxitoxin' smaller than 1000 ng/g ")
     )
   }
   
@@ -370,13 +311,12 @@ check_micys_range <- function() {
   if ("Microcystin" %in% bend_with_results$Target){
     bend_with_results <- bend_with_results |> filter(
       bend_with_results$Target == "Microcystin")
-    View(bend_with_results)
     result <- with(
       bend_with_results,
-      all(as.numeric(gsub(",", "",bend_with_results$Result)) < 300000 & as.numeric(gsub(",", "",bend_with_results$Result)) > 0))
+      all(as.numeric(gsub(",", "",bend_with_results$Result)) < 300000))
     
     return(
-      list(result = result, description = "Checking for 'Microcystin' smaller than 300,000 copies/mL and bigger than 0 copies/mL")
+      list(result = result, description = "Checking for 'Microcystin' smaller than 300,000 copies/mL")
     )
   }
   
@@ -406,7 +346,8 @@ qaqc_funcs <- list(
   check_locations_in_lookup,
   check_anat_range,
   check_cysp_range,
-  check_micy_nod_range,
+  check_micy_nod_ng_range,
+  check_micy_nod_ug_range,
   check_saxtx_range,
   check_micys_range
 )
@@ -461,7 +402,7 @@ bend_labs_data_column <- bend_labs_data |>
 clean_bend <- reactive({
   
   all_files <- all_files() |>
-  mutate("Project ID" = project_id_lookup[Location],
+  mutate("Project ID" = project_id_lookup()[Location],
          # Not all locations are recorded in master monitoring plan:
         # Benthic LUC01, OA04, LA03
          "Monitoring Location ID" = Location,
