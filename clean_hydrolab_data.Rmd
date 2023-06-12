@@ -38,10 +38,104 @@ library(DT)
 library(utf8)
 library(wqxWeb)
 library(emo)
-# reticulate::use_condaenv("r-reticulate")
+reticulate::use_condaenv("r-reticulate")
 ```
 
 ```{r, include=FALSE}
+project_id_lookup <- c(
+  "M1" = "MS",
+  "M2" = "MS",
+  "M3" = "MS",
+  "M4" = "MS",
+  "HSP" = "SW",
+  "BVSWD1" = "SW",
+  "NBPRSC" = "SW",
+  "RSTCC" = "SW",
+  "BVCL1" = "SW",
+  "BVRTC1" = "SW",
+  "BVRTCC" = "SW",
+  "BVSWDRV" = "SW",#not in cdx
+  "RVSI1" = "SW",#not in cdx
+  "RVSI2" = "SW",#not in cdx
+  "BVCL2" = "CLM",	
+  "BVCL3" = "CLM",	
+  "BVCL5" = "CLM",	
+  "BVCL6" = "CLM",	
+  "BVCL11" = "CLM",	
+  "BVCL12" = "CLM",	
+  "BVCL13" = "CLM",	
+  "BVCL14" = "CLM",	
+  "BVCL15" = "CLM",	
+  "BVCL16" = "CLM",	
+  "BVCL17" = "CLM",	
+  "BVCL18" = "CLM",	
+  "BVCL19" = "CLM",	
+  "BVCL20" = "CLM",
+  "FC1" = "CS", 
+  "FC2" = "CS",
+  "FC3" = "CS",#not in cdx
+  "MC1" = "CS",
+  "MC2" = "CS",
+  "TC1" = "CS",
+  "AC1" = "CS",
+  "AC2" = "CS",
+  "AC3" = "CS",
+  "AC4" = "CS",
+  "MCC1" = "CS",
+  "KC1" = "CS",
+  "CC1" = "CS",
+  "SC1" = "CS",
+  "SC2" = "CS",#not in cdx
+  "SHC2"= "CS",#not in cdx
+  "CC2" = "CS",#not in cdx
+  "SIEG01" = "CS",#not in cdx
+  "COOP01" = "CS",#not in cdx
+  "CLOV01" = "CS",#not in cdx
+  "DRY01" = "CS",#not in cdx
+  "COY01" = "CS",#not in cdx
+  "SCOT01"= "CS",#not in cdx
+  "AND01" = "CS",#not in cdx
+  "NFORK01" = "CS",#not in cdx
+  "LONG01" = "CS", #not in cdx
+  "PUT01" = "CS", #not in cdx
+  "MID01"= "CS", #not in cdx
+  "KC5"= "CS", #not in cdx
+  "AP01" = "HAB",
+  "BP" = "HAB",
+  "CLOAKS01" = "HAB",
+  "CLV7" = "HAB",
+  "CP" = "HAB",
+  "ELEM01" = "HAB",
+  "GH" = "HAB",
+  "HB" = "HAB",
+  "JB" = "HAB",
+  "KEYS01" = "HAB",
+  "KEYS03" = "HAB",
+  "KP01" = "HAB",
+  "LC01" = "HAB",
+  "LPTNT" = "HAB",
+  "LS" = "HAB",
+  "LS2" = "HAB",
+  "LUC01" = "HAB",
+  "RED01" = "HAB",
+  "RODS" = "HAB",
+  "SBMMEL01" = "HAB",
+  "SHADY01" = "HAB",
+  "UBL" = "HAB",
+  "CL-1" = "HAB",
+  "CL-3" = "HAB",
+  "CL-4" = "HAB",
+  "CL-5" = "HAB",
+  "LA-03" = "HAB",
+  "NR-02" = "HAB",
+  "OA-04" = "HAB",
+  "UA-01" = "HAB",
+  "UA-06" = "HAB",
+  "UA-07" = "HAB",
+  "UA-08" = "HAB",
+  "PILLS01" = "HAB", #not in cdx
+  "LAKEPILS01" = "HAB" #not in cdx
+  )
 
 unit_lookup <- c(
   "Temperature, water" = "deg C", 
@@ -125,13 +219,6 @@ fileInput(
   multiple = TRUE
 )
 
-file_path_to_project_id <- paste0(getwd(), "/project-id-lookup.csv")
-textInput("project_id_lookup_file", "Project ID Look Up File Path", value = file_path_to_project_id)
-
-project_id_lookup <- reactive({
-  project_id_csv <- read_csv(input$project_id_lookup_file)
-  project_id_vec <- project_id_csv |> pull(project_id, location)
-})
 
 all_files <- reactive({
   req(input$hydro_lab_files)
@@ -177,7 +264,7 @@ Here are a few basic QA/QC processes to make sure that the data is in the right 
 # an example of qa qc function, it MUST return a result T/F and a description string
 
 check_locations_in_lookup <- function(){
-  result <- ifelse(all(all_files()$location_id %in% names(project_id_lookup())), TRUE, FALSE)
+  result <- ifelse(all(all_files()$location_id %in% names(project_id_lookup)), TRUE, FALSE)
   
   return(list(result = result, description= "Checking for 'Location' column in listed Project Sites"))
 }
@@ -398,7 +485,7 @@ clean_hydro_lab <- reactive({
   req(input$hydro_lab_files)
   
   hydrolab_formatted_for_wqx <- partial_clean_hydrolab() |> 
-    mutate("Project ID" = project_id_lookup()[`Monitoring Location ID`],
+    mutate("Project ID" = project_id_lookup[`Monitoring Location ID`],
          "Activity ID User Supplied(PARENTs)" = "",
          "Activity Type" = "Field Msr/Obs",
          "Activity Media Name" = "Water",
