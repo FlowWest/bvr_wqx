@@ -33,7 +33,7 @@ library(readr)
 library(wqxWeb)
 library(utf8)
 library(emo)
-reticulate::use_condaenv("r-reticulate")
+# reticulate::use_condaenv("r-reticulate")
 ```
 
 ```{r, include=FALSE}
@@ -135,7 +135,7 @@ project_id_lookup <- c(
 unit_lookup <- c(
   "Temperature, water" = "deg C", 
   "Specific conductance" = "mS/cm", 
-  "Resistivity" = "KOhm-cm", 
+  "Resistivity" = "Kohm/cm", 
   "Salinity" = "ppt", 
   "Total dissolved solids" = "g/L", 
   "Dissolved oxygen saturation" = "%",
@@ -218,16 +218,18 @@ all_files <- reactive({
   req(input$bend_files)
   
   bend_raw <- read_csv(input$bend_files$datapath, skip = 7)  |>
-    select(-'...8')
-  
-  analytical_report_for_samples <-
-    bend_raw[1:which(is.na(bend_raw$`Sample ID`))[1] - 1,]
+    select(-contains('...'))
   
   bend_raw_na <- bend_raw |>
-    filter(!if_all(everything(), is.na))
+  filter(!if_all(everything(), is.na))
+  
+  df_cutoff <- which(str_detect(bend_raw_na$'Location', 'Bend Genetics, LLC'))
+  
+  analytical_report_for_samples <-
+    bend_raw_na[1:df_cutoff[1]-1,]
   
   sample_results <-
-    bend_raw_na[(which(is.na(bend_raw_na$`Sample ID`))[1:4][4] + 3):(which(is.na(bend_raw_na$`Sample ID`))[5] - 1),] |>
+    bend_raw_na[(which(str_detect(bend_raw_na$'Sample ID', "SAMPLE RESULTS"))+2):(df_cutoff[2]-1),] |>
     rename(
       Method = Location,
       Target = `Date Collected`,

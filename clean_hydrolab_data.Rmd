@@ -140,7 +140,7 @@ project_id_lookup <- c(
 unit_lookup <- c(
   "Temperature, water" = "deg C", 
   "Specific conductance" = "mS/cm", 
-  "Resistivity" = "KOhm-cm", 
+  "Resistivity" = "KOhm/cm", 
   "Salinity" = "ppt", 
   "Total dissolved solids" = "g/L", 
   "Dissolved oxygen saturation" = "%",
@@ -494,7 +494,7 @@ clean_hydro_lab <- reactive({
          "Activity Start Time Zone" = "PST",
          "Activity Depth/Height Measure" = as.numeric(Depth10),
          "Activity Depth/Height Unit" = "m",
-         "Sample Collection Method ID" = "BVR Tribal SWQAPP",
+         "Sample Collection Method ID" = "BVR SWQAPP",
          "Sample Collection Method Context" = "CA_BVR",
          "Sample Collection Equipment Name" = "Probe/Sensor",
          "Sample Collection Equipment Comment" = "Hydrolab Surveyor DS5 Multiprobe",
